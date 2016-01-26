@@ -1,0 +1,250 @@
+# -*- coding: cp1252 -*-
+import sqlite3 as sql
+import sys, os, shutil
+from datetime import datetime
+from bottle import route, run, debug, template, static_file, get, request, redirect
+import kadabraKupNetWork
+import threading
+import MySQLdb as sql
+
+
+queryComputador = "SELECT * FROM computador"
+
+connt = sql.connect('127.0.0.1', 'root', '', 'kadabrakup');
+cur = connt.cursor()
+#conn = sql.connect('pwnbackup.db',check_same_thread=False) #CONECTA AO BD SQLITE
+connt.text_factory = str
+
+class TaksBackup(object):
+    def __init__(self):
+     self.isRunning = True
+     self.isRunningFull = True
+     self.idComputador = ""
+
+    def runForever(self):
+       while self.isRunning == True:
+          kadabraKupNetWork.taskBackup()
+    def runBackupFull(self):
+        if self.isRunningFull == True:
+            kadabraKupNetWork.backupFull(self.idComputador)
+            
+            
+            
+            
+    
+
+"""
+@get('/<filepath:path>')
+def server_static(filepath):
+    return static_file(filepath, root='/bootstrap/css')
+"""
+
+
+l = TaksBackup()
+t = threading.Thread(target = l.runForever)
+"""
+queryFolders = "SELECT * FROM copiarpasta"
+cur.execute(queryFolders)
+folders = cur.fetchall()
+runBackup = True
+
+if len(folders) > 0:
+    while runBackup:
+        t.start()
+        l.isRunning = True
+        startBackup = True
+        runBackup =  False
+else:
+    startBackup = False
+"""
+startBackup = False
+@route('/')
+def index():
+    global startBackup    
+    queryComputador = "SELECT * FROM computador WHERE heavy = 0 ORDER BY name ASC"
+    cur.execute(queryComputador)
+    computadores = cur.fetchall()
+    btnSet = ""
+    if startBackup:
+        btnSet = "disabled='disabled'"        
+    else:
+        pass
+        #queryUpdateAllStatus = "UPDATE computador SET status = 'None' WHERE heavy = 0 "
+        #cur.execute(queryUpdateAllStatus)
+        #connt.commit()
+    return template('containercomputers',runingBackup = btnSet, results = computadores)
+
+@route('/heavy')
+def heavy():    
+    redirect('http://127.0.0.1:8182')
+
+@route('/light')
+def heavy():    
+    redirect('http://127.0.0.1:8180')
+
+@route('/startbackup')
+def start():
+    global startBackup
+    global l
+    l = TaksBackup()
+    t = threading.Thread(target = l.runForever)
+    t.start()
+    l.isRunning = True
+    startBackup = True
+    redirect('/')
+    
+
+@route('/startfullbackup/<idComputador>')
+def startfullbackup(idComputador):
+    t = TaksBackup()
+    f = threading.Thread(target = t.runBackupFull)
+    t.idComputador = idComputador
+    t.isRunningFull = True
+    f.start()
+    #t.isRunningFull = False    
+    redirect('/')
+    
+
+@route('/stopbackup')
+def stop():
+    global startBackup
+    global l
+    l.isRunning = False
+    startBackup = False
+    redirect('/')
+
+@route('/novo')
+def novo():
+    computadores = [('','','','','')]
+    return template('formcomputer', results = computadores, idCp = "")
+
+@route('/editar/<idComputador>')
+def editar(idComputador):
+    queryEditar = "SELECT * FROM computador WHERE id = %d" %(int(idComputador))
+    cur.execute(queryEditar)
+    computadores = cur.fetchall()
+    return template('formcomputer', results=computadores, idCp = idComputador)
+
+
+
+@route('/folders/<idComputador>')
+def folders(idComputador):
+    queryFolders = "SELECT cp.id, cp.enderecoPasta ,cp.idComputador, co.name FROM copiarpasta cp INNER JOIN computador co ON co.id = cp.idComputador WHERE idComputador = %d " % (int(idComputador))
+    cur.execute(queryFolders)
+    folders = cur.fetchall()
+    namepc = ""
+    cur.execute("SELECT name FROM computador WHERE id= %d " % (int(idComputador)))
+    computador = cur.fetchall()
+    for c in computador:
+        namepc = c[0]
+    return template('containerfolders', results=folders, idCp = idComputador, computador = namepc)
+
+@route('/novapasta/<idComputador>')
+def novapasta(idComputador):
+    pastas = [('','','')]
+    cur.execute("SELECT name FROM computador WHERE id= %d" % (int(idComputador)))
+    computador = cur.fetchall()
+    for c in computador:
+        namepc = c[0]
+    return template('formpastas', results = pastas, idComputador = idComputador, acao= "Adicionar Pasta", computador = namepc)
+
+@route('/editarpasta/<idPasta>')
+def editarpasta(idPasta):    
+    cur.execute("SELECT cp.id, cp.enderecoPasta ,cp.idComputador, co.name FROM copiarpasta cp INNER JOIN computador co ON co.id = cp.idComputador WHERE cp.id ="+idPasta+"")
+    datapasta = cur.fetchall()
+    for d in datapasta:
+        namepc = d[3]
+        idPc = d[2]
+    return template('formpastas', results=datapasta, acao= "Editar Pasta", idFolder = idPasta,idComputador = idPc, computador=namepc)
+
+@route('/apagar/<idComputador>')
+def apagar(idComputador):
+    queryDeleteFoldersByPc="DELETE  FROM copiarpasta WHERE idComputador=%d" % (int(idComputador))
+    queryDeleteComputador = "DELETE FROM computador WHERE id=%d "% (int(idComputador))
+    cur.execute(queryDeleteFoldersByPc)
+    cur.execute(queryDeleteComputador)
+    connt.commit()
+    redirect('/')
+
+@route('/logs/<idComputador>')
+def logs(idComputador):
+    queryLogs = "SELECT c.name, l.mensagem, l.data FROM logs l INNER JOIN computador c ON l.idComputador = c.id  WHERE idComputador = %d ORDER BY l.id DESC" % (int(idComputador))
+    cur.execute(queryLogs)
+    logs = cur.fetchall()
+    return template('containerlogs', results = logs, acao = "Visualizar Logs")
+
+@route('/apagarpasta/<idPasta>')
+def apagarpasta(idPasta):
+    cur.execute("SELECT idComputador FROM copiarpasta WHERE id = "+idPasta+"")
+    datapc = cur.fetchall()
+    for d in datapc:
+        idComputador = d[0]
+    cur.execute("DELETE FROM copiarpasta WHERE id="+str(idPasta))
+    connt.commit()
+    redirect('/folders/'+str(idComputador))
+
+
+
+@route('/<filename:re:.*\.css>')
+def stylesheets(filename):
+    return static_file(filename, root='./bootstrap/css')
+
+
+
+
+@route('/savefolder', method='POST')
+def savefolder():
+    idComputador = request.forms.get("idcomputador")    
+    pasta = request.forms.get("source")
+    pasta = pasta.replace("\\","\\\\")
+    idPasta = request.forms.get("idpasta")
+    queryExec = ""
+    act = ""
+    if idPasta == "":
+        queryExec = "INSERT INTO copiarpasta (enderecopasta,idComputador) VALUES ('%s',%d)" % (pasta,int(idComputador))           
+    else:
+        queryExec = "UPDATE copiarpasta SET enderecopasta = '%s'  WHERE id = %d" % (pasta,int(idPasta))
+    
+    act = cur.execute(queryExec)
+    if act:
+        connt.commit()   
+        redirect("/folders/"+str(idComputador))
+   
+   
+
+@route('/about')
+def about():
+    return template("containerabout")
+
+@route('/savecomputer', method='POST')
+def savecomputer():
+    idComputador = request.forms.get("idcomputador")
+    computador = request.forms.get("computador")
+    heavy_check = request.forms.get("heavy")
+    print idComputador, heavy_check
+    if heavy_check == None:
+        heavy_check = 0
+    else:
+        heavy_check = 1
+
+    print idComputador, heavy_check
+    destino = request.forms.get('destino')
+    destino = destino.replace("\\","\\\\")
+    msg = ""
+    queryComputadorInsert = "INSERT INTO computador (name, destino,heavy) VALUES ('%s','%s',%d)" % (computador, destino, heavy_check)
+    queryComputadorUpdate = "UPDATE computador SET name = '%s', destino= '%s', heavy = %d WHERE id = %d" % (computador, destino,heavy_check, int(idComputador))   
+    
+    if idComputador == "":
+        act = cur.execute(queryComputadorInsert)            
+    else:
+        act = cur.execute(queryComputadorUpdate)
+    connt.commit()   
+    redirect("/")           
+   
+
+@route('/error')
+def error():
+    return template('containererror')
+
+run(host='localhost', port=8180)
+
