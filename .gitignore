@@ -5,3 +5,6 @@ dist/
 
 *.pyc
 *.spec
+web2.py
+kadabraKupNetWork2.py
+kadabraKupNetWork2.pyc

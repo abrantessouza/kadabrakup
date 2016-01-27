@@ -7,7 +7,7 @@ import MySQLdb as sql
 
 queryComputador = "SELECT * FROM computador WHERE heavy = 0 AND ignory = 0 ORDER BY name ASC"
 
-conn = sql.connect('127.0.0.1', 'kadabra', '', 'kadabrakup');
+conn = sql.connect('127.0.0.1', 'root', '', 'kadabrakup');
 #conn = sql.connect('pwnbackup.db',check_same_thread=False) #CONECTA AO BD SQLITE
 conn.text_factory = str
 
@@ -16,7 +16,8 @@ def modification_date(filename): #RETORNA O TIMESTAMP DO ARQUIVO MOTIDICADO
     return int(t)
 
 def gravaLog(msg, idComputador):
-    msg = msg.replace("\\","\\\\")
+    msg = msg.replace("\\","/")
+    msg = msg.replace("'", "''")
     cur = conn.cursor()
     dataHoje = datetime.now()
     dateHojeBr = str(dataHoje.day) + "/" + str(dataHoje.month) + "/" + str(dataHoje.year) + "_"+ str(dataHoje.hour) +":"+ str(dataHoje.minute)
@@ -30,9 +31,10 @@ def gravaLog(msg, idComputador):
             cur.execute("INSERT INTO logs (mensagem, idComputador, data) VALUES ('%s', %d, '%s') " % (str(mensg), int(idComputador), dateHojeBr) )
             conn.commit()
         except:
+            conn.commit()
             pass        
     except:
-        print "Erro ao grabar o log"
+        print "Erro ao gravar o log"
 
 def getTotalFilesSource(idComputador):
     countFiles = True
@@ -299,11 +301,15 @@ def taskBackup():
                 if lenRowsFiles == 0:
                     backupFull(c[0])
                 else:
-                    backupIncremental(c[0])                
+                    backupIncremental(c[0])
+                conn.commit()
             else:
                 cur.execute("UPDATE computador SET status='Falha no Backup' WHERE id = "+str(c[0]))
                 conn.commit()
                 gravaLog("Verifique se o computador remoto esta desligado ", str(c[0]))
+
+             
+       
                 
               
           
