@@ -1,0 +1,7 @@
+# Don't commit the files and directorys above
+
+build/
+dist/
+
+*.pyc
+*.spec
