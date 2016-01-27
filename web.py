@@ -10,7 +10,7 @@ import MySQLdb as sql
 
 queryComputador = "SELECT * FROM computador"
 
-connt = sql.connect('127.0.0.1', 'root', '', 'kadabrakup');
+connt = sql.connect('127.0.0.1', 'kadabra', '', 'kadabrakup');
 cur = connt.cursor()
 #conn = sql.connect('pwnbackup.db',check_same_thread=False) #CONECTA AO BD SQLITE
 connt.text_factory = str
@@ -216,25 +216,34 @@ def savefolder():
 def about():
     return template("containerabout")
 
+@route("/clickSenderIng", method='POST')
+def setComputadorIgnore():
+    idComputador = request.forms.get("idComputador")
+    checkBoxIgn = request.forms.get("valueFied")
+    print idComputador, checkBoxIgn
+    queryUpdateIgn = "UPDATE computador SET ignory = %d WHERE id = %d " % (int(checkBoxIgn), int(idComputador))
+    cur.execute(queryUpdateIgn)
+    connt.commit()
+
 @route('/savecomputer', method='POST')
 def savecomputer():
     idComputador = request.forms.get("idcomputador")
     computador = request.forms.get("computador")
     heavy_check = request.forms.get("heavy")
-    print idComputador, heavy_check
+    if idComputador == "":
+        idComputador = 0
     if heavy_check == None:
         heavy_check = 0
     else:
         heavy_check = 1
-
-    print idComputador, heavy_check
+   
     destino = request.forms.get('destino')
     destino = destino.replace("\\","\\\\")
     msg = ""
     queryComputadorInsert = "INSERT INTO computador (name, destino,heavy) VALUES ('%s','%s',%d)" % (computador, destino, heavy_check)
     queryComputadorUpdate = "UPDATE computador SET name = '%s', destino= '%s', heavy = %d WHERE id = %d" % (computador, destino,heavy_check, int(idComputador))   
     
-    if idComputador == "":
+    if idComputador == "" or idComputador == 0:
         act = cur.execute(queryComputadorInsert)            
     else:
         act = cur.execute(queryComputadorUpdate)

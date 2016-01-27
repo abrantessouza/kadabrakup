@@ -12,6 +12,7 @@
 						<th  style="text-align:center">Computador</th>
 						<th  style="text-align:center">Destino</th>
 						<th  style="text-align:center">Status</th>
+						<th  style="text-align:center">Ignorar</th>
 						<th  style="text-align:center">Ações</th>
 					</tr>
 				</thead>
@@ -21,6 +22,13 @@
 						<td>{{r[1]}}</td>
 						<td>{{r[2]}}</td>
 						<td>{{r[3]}}</td>
+						<td>
+							%if r[5] == 1:								
+								<input type="checkbox" checked="checked" onclick = "clickSend(this);" value="1" data-id={{r[0]}}>
+							%else:
+								<input type="checkbox"  onclick = "clickSend(this);" value="1" data-id={{r[0]}}>
+							%end
+						</td>
 						<td>
 						 <a href = '/editar/{{r[0]}}'><button type="button" {{runingBackup}} class="btn btn-xs btn-warning">Editar</button></a>
 						 <a href = '/logs/{{r[0]}}'<button type="button" class="btn btn-xs btn-warning">Logs</button></a>
@@ -38,4 +46,18 @@ setInterval(function() {
 	//A cada um minuto ele faz o refreash da página
 	location.reload();
 	},60000);
+	
+function clickSend(dt){
+	var ajaxRequest = new XMLHttpRequest();
+	ajaxRequest.open("POST","/clickSenderIng", true);
+	ajaxRequest.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+	var id = dt.getAttribute("data-id");
+	var val = 0;
+	if(dt.checked){
+		val = 1;
+	}	
+	ajaxRequest.send("idComputador="+id+"&valueFied="+val)
+}
+
+
 </script>

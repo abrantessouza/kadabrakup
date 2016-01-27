@@ -5,9 +5,9 @@ import zipfile
 from datetime import datetime
 import MySQLdb as sql
 
-queryComputador = "SELECT * FROM computador WHERE heavy = 0 ORDER BY name ASC"
+queryComputador = "SELECT * FROM computador WHERE heavy = 0 AND ignored = 0 ORDER BY name ASC"
 
-conn = sql.connect('127.0.0.1', 'root', '', 'kadabrakup');
+conn = sql.connect('127.0.0.1', 'root', 'ladetec', 'kadabrakup');
 #conn = sql.connect('pwnbackup.db',check_same_thread=False) #CONECTA AO BD SQLITE
 conn.text_factory = str
 
