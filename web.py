@@ -10,7 +10,7 @@ import MySQLdb as sql
 
 queryComputador = "SELECT * FROM computador"
 
-connt = sql.connect('127.0.0.1', 'kadabra', '', 'kadabrakup');
+connt = sql.connect('127.0.0.1', 'root', '', 'kadabrakup');
 cur = connt.cursor()
 #conn = sql.connect('pwnbackup.db',check_same_thread=False) #CONECTA AO BD SQLITE
 connt.text_factory = str
@@ -105,12 +105,13 @@ def startfullbackup(idComputador):
     redirect('/')
     
 
+
 @route('/stopbackup')
 def stop():
     global startBackup
     global l
     l.isRunning = False
-    startBackup = False
+    startBackup = False    
     redirect('/')
 
 @route('/novo')

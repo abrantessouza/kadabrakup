@@ -2,7 +2,7 @@
 
  <div class="container">
 	<div class="starter-template">
-		 <a href = '/novo'><button type="button" {{runingBackup}} class="btn btn-lg btn-danger">Novo Computador</button></a>
+		 <a href = '/novo'><button type="button"  class="btn btn-lg btn-danger">Novo Computador</button></a>
 		 <a href = '/startbackup'><button type="button" {{runingBackup}}  class="btn btn-lg btn-danger">Iniciar Backup</button></a>
 		 <a href = '/stopbackup'><button type="button"   class="btn btn-lg btn-danger">Parar Backup</button></a>
 		 
