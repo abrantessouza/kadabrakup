@@ -1,7 +1,7 @@
 # -*- coding: cp1252 -*-
 #import sqlite3 as sql
 import sys, os, shutil, win32api, win32con
-import zipfile
+import zipfile, zlib
 from datetime import datetime
 import MySQLdb as sql
 
@@ -62,14 +62,14 @@ def calcPercentagemFiles(i, totalFiles):
 def zipdir(path, ziph):   
     for root, dirs, files in os.walk(path):
         for file in files:
-            ziph.write(os.path.join(root, file))
+            ziph.write(os.path.join(root, file), compress_type=zipfile.ZIP_DEFLATED)
 
 def makeZipMove(nameFile, folderDestTemp, folderDest, computadadorNome, idComputador):
     cur = conn.cursor()
     dataHoje = datetime.now()
     os.chmod(folderDestTemp, 0o777)        
     #gravaLog("Forcing Zip the Directory |  Erro: "+str(e), idComputador)
-    zf = zipfile.ZipFile(nameFile+'.zip', mode='w', allowZip64=True)
+    zf = zipfile.ZipFile(nameFile+'.zip', mode='w',allowZip64=True)
     zipdir(folderDestTemp, zf)
     zf.close()
     shutil.move(nameFile+".zip",folderDest)
@@ -147,7 +147,23 @@ def backupFull(idComputador):
         nameFile = nameFile = c[1]+"_full_"+dateHoje
         folderDest = c[2]+"\\"+c[1]+"\\Backup"
         makeZipMove(nameFile, folderDest, c[2]+"\\"+c[1], c[1], c[0])
-           
+
+
+def copyIncremental(makeDestiny, fullPathRaw, fullPath, timeStampRemote, timestamp):
+    if not os.path.isdir(makeDestiny):
+        makeDestiny = makeDestiny.split("\\")                        
+        del makeDestiny[-1]
+        makeDestiny = "\\".join(makeDestiny)
+        os.makedirs(makeDestiny)
+        try:
+            print timeStampRemote, timestamp
+            shutil.copy2(fullPath.replace("''","'"), makeDestiny)
+        except Exception as e:
+            print "1"
+            print str(e)
+        
+
+
                 
 def backupIncremental(idComputador):
     gravaLog("BACKUP INCREMENTAL do iniciado", idComputador)
@@ -184,6 +200,14 @@ def backupIncremental(idComputador):
     i = 0
    
     for f in folders:
+        queryCheckFile = "SELECT id, caminhoArquivo, timestamp FROM arquivos WHERE idPasta = %d " % (f[0])
+        colunas = ["id", "caminhoArquivo", "timestamp"]
+        cur.execute(queryCheckFile)
+        rowsFiles = cur.fetchall()
+        teste = [dict(zip(colunas,rows)) for rows in rowsFiles]
+        lista = list()
+        for t in teste:                    
+            lista.append(t['caminhoArquivo'])
         for path, dirr, files in os.walk(f[2]):
             for fi in files:   
                 fullPathRaw = os.path.join(path,fi)                
@@ -192,60 +216,60 @@ def backupIncremental(idComputador):
                 del rootfolder[0]
                 del rootfolder[0]                
                 rootfolder = "\\".join(rootfolder)
-                fullPath = fullPathRaw.replace("'","''")
-                queryCheckFile = "SELECT * FROM arquivos WHERE idPasta = %d AND caminhoArquivo = '%s' " % (f[0], fullPath.replace("\\","\\\\"))
-                cur.execute(queryCheckFile)
-                rowFile = cur.fetchall()
-                makeDestiny = folderDestiny+rootfolder                
-                if len(rowFile) < 1:
-                    try:
-                        makeDestiny = makeDestiny.split("\\")                        
-                        del makeDestiny[-1]
-                        makeDestiny = "\\".join(makeDestiny)
-                        print "Criando Novo "+makeDestiny
-                        os.makedirs(makeDestiny)
-                    except Exception as e:
-                        print "PEi!!!"
-                        print str(e)
-                    try:
-                        
-                        shutil.copy2(fullPath.replace("''","'"),makeDestiny)
-                        with conn:
-                            try:
-                                cur.execute("INSERT INTO arquivos (idPasta, caminhoArquivo, timestamp) VALUES ('"+str(f[0])+"', '"+fullPath.replace("\\","\\\\")+"', '"+str(modification_date(fullPathRaw))+"' )" )
-                                conn.commit()
-                            except :
-                                pass
-                    except Exception as e:
-                        gravaLog(str(e), idComputador) 
+                fullPath = fullPathRaw.replace("'","''") 
+                makeDestiny = folderDestiny+rootfolder
+                if fullPathRaw in lista:
+                     for id, caminhoArquivo, timestamp in rowsFiles:
+                         if fullPathRaw == caminhoArquivo:
+                             timeStampRemote = str(int(modification_date(fullPathRaw))) 
+                             if int(timestamp) < int(timeStampRemote):
+                                 copyIncremental(makeDestiny, fullPathRaw, fullPath, timeStampRemote, timestamp)
+                                 with conn:
+                                    try:
+                                        cur.execute("UPDATE arquivos SET timestamp = '"+str(modification_date(fullPathRaw))+"' WHERE id ='"+str(id)+"'")
+                                        conn.commit()
+                                    except Exception as e:
+                                        print "2"
+                                        print str(e)
+                                 
                 else:
-                    makeDestiny = folderDestiny+rootfolder
-                    idArquivos, idPasta, caminho, timeStampDb = rowFile[0]
-                    timeStampDb = str(int(timeStampDb))
-                    try:
-                        timeStampRemote = str(int(modification_date(fullPathRaw.replace("\\","\\\\"))))
-                    except:
-                        timeStampRemote = timeStampDb                   
-                    
-                    if timeStampRemote != timeStampDb: #COMPARAÇÃO COM AS DADAS DE MODIFICAÇOES
-                        with conn:
-                            cur.execute("UPDATE arquivos SET timestamp = '"+str(modification_date(fullPathRaw))+"' WHERE caminhoArquivo ='"+fullPath.replace("\\","\\\\")+"'")
+                    copyIncremental(makeDestiny, fullPathRaw, fullPath, timeStampRemote, timestamp)
+                    with conn:
+                        try:
+                            cur.execute("INSERT INTO arquivos (idPasta, caminhoArquivo, timestamp) VALUES ('"+str(f[0])+"', '"+fullPath.replace("\\","\\\\")+"', '"+str(modification_date(fullPathRaw))+"' )" )
                             conn.commit()
-                        try:
-                            makeDestiny = makeDestiny.split("\\")
-                            del makeDestiny[-1]
-                            makeDestiny = "\\".join(makeDestiny)
-                            print "Substituindo "+makeDestiny
-                            subdirs = path.replace(f[2],"")                                                         
-                            os.makedirs(makeDestiny)
-                           
                         except Exception as e:
+                            print "2"
                             print str(e)
-                        try:
-                            subdirs = path.replace(f[2],"")                             
-                            shutil.copy2(fullPathRaw,makeDestiny)
-                        except Exception as e:
-                            print str(e)                   
+                    
+                                        
+                
+                """
+                for id, caminhoArquivo, timestamp in rowsFiles:                   
+                    if fullPathRaw == caminhoArquivo:                        
+                        timeStampRemote = str(int(modification_date(fullPathRaw)))                        
+                        if int(timestamp) < int(timeStampRemote):
+                            if not os.path.isdir(makeDestiny):
+                                makeDestiny = makeDestiny.split("\\")                        
+                                del makeDestiny[-1]
+                                makeDestiny = "\\".join(makeDestiny)
+                                os.makedirs(makeDestiny)
+                            try:
+                                print timeStampRemote, timestamp
+                                shutil.copy2(fullPath.replace("''","'"), makeDestiny)
+                            except Exception as e:
+                                print "1"
+                                print str(e)
+                            with conn:
+                                try:
+                                    cur.execute("UPDATE arquivos SET timestamp = '"+str(modification_date(fullPathRaw))+"' WHERE id ='"+str(id)+"'")
+                                    conn.commit()
+                                except Exception as e:
+                                    print "2"
+                                    print str(e)
+                """
+                    
+                   
      
     nameFile =  nomeComputador+"_incremental_"+dateHoje    
     try:
