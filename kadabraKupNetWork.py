@@ -149,18 +149,18 @@ def backupFull(idComputador):
         makeZipMove(nameFile, folderDest, c[2]+"\\"+c[1], c[1], c[0])
 
 
-def copyIncremental(makeDestiny, fullPathRaw, fullPath, timeStampRemote, timestamp):
+def copyIncremental(makeDestiny, fullPathRaw, fullPath, timeStampRemote, timestamp):    
+    makeDestiny = makeDestiny.split("\\")                        
+    del makeDestiny[-1]
+    makeDestiny = "\\".join(makeDestiny)
     if not os.path.isdir(makeDestiny):
-        makeDestiny = makeDestiny.split("\\")                        
-        del makeDestiny[-1]
-        makeDestiny = "\\".join(makeDestiny)
         os.makedirs(makeDestiny)
-        try:
-            print timeStampRemote, timestamp
-            shutil.copy2(fullPath.replace("''","'"), makeDestiny)
-        except Exception as e:
-            print "1"
-            print str(e)
+    try:
+        print timeStampRemote, timestamp
+        shutil.copy2(fullPath.replace("''","'"), makeDestiny)
+    except Exception as e:
+        print "1"
+        print str(e)
         
 
 
@@ -185,8 +185,8 @@ def backupIncremental(idComputador):
         folderDestiny = folderDest + "\\Backup\\"
     try:
         shutil.rmtree(folderDestiny)
-    except:
-        pass
+    except Exception as e:
+        print str(e)
     #executa o backup incremental
     
     queryFolders  = "SELECT * FROM copiarpasta WHERE idComputador = % d" % (idComputador)
