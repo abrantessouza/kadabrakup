@@ -17,7 +17,11 @@ def modification_date(filename): #MAC GYVER FUNCTION RETURN THE TIMESTAMP OF MOD
         t = os.path.getmtime(filename)
     except:
         makeDestiny = "H:\\CopiaChem\\temp"
-        os.makedirs(makeDestiny)
+        try:
+            shutil.rmtree(makeDestiny)
+            os.makedirs(makeDestiny)
+        except:
+            pass        
         fullPathDestiny, fullPathFile = os.path.split(filename)
         newNameFile = fullPathFile.split(".")
         newNameFile = newNameFile[0][:10] + "." + newNameFile[1] #SUBSTRING THE NAME FILE TO COPY
@@ -152,7 +156,6 @@ def backupFull(idComputador): #RUN THE FULL BACKUP
                     sourceFile = sourceFileRaw.replace("'","''")
                     try:
                         cur.execute("INSERT INTO arquivos (idPasta, caminhoArquivo, timestamp) VALUES ('"+str(f[0])+"', '"+sourceFile.replace("\\","\\\\")+"', '"+str(modification_date(sourceFileRaw))+"' )" )
-                        
                     except Exception as e:
                         print sourceFile
                         print str(e)            
