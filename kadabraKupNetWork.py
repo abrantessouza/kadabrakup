@@ -18,17 +18,17 @@ def modification_date(filename): #MAC GYVER FUNCTION RETURN THE TIMESTAMP OF MOD
     except:
         makeDestiny = "H:\\CopiaChem\\temp"
         try:
-            shutil.rmtree(makeDestiny)
-            os.makedirs(makeDestiny)
+            shutil.rmtree(makeDestiny)            
         except:
-            pass        
+            pass
+        os.makedirs(makeDestiny)
         fullPathDestiny, fullPathFile = os.path.split(filename)
         newNameFile = fullPathFile.split(".")
         newNameFile = newNameFile[0][:10] + "." + newNameFile[1] #SUBSTRING THE NAME FILE TO COPY
         makeDestiny = os.path.join(makeDestiny,newNameFile.replace(" ",""))
         cmdDir = 'forceCopyFile.bat "%s" "%s" "%s" ' % (fullPathDestiny, fullPathFile, makeDestiny) #CALLS THE BATCH FILE TO MAKE A FORCE COPY USING CMD
         os.system(cmdDir)
-        t = modification_date(makeDestiny)
+        t = os.path.getmtime(makeDestiny)
         folder, file_path = os.path.split(makeDestiny)
         shutil.rmtree(folder)
     return int(t)
