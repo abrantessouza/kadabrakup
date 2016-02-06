@@ -13,6 +13,7 @@ conn = sql.connect('127.0.0.1', 'root', '', 'kadabrakup');
 conn.text_factory = str
 
 def modification_date(filename): #MAC GYVER FUNCTION RETURN THE TIMESTAMP OF MODIFICATED DATE FILE
+    t = 0
     try:
         t = os.path.getmtime(filename)
     except:
@@ -28,9 +29,10 @@ def modification_date(filename): #MAC GYVER FUNCTION RETURN THE TIMESTAMP OF MOD
         makeDestiny = os.path.join(makeDestiny,newNameFile.replace(" ",""))
         cmdDir = 'forceCopyFile.bat "%s" "%s" "%s" ' % (fullPathDestiny, fullPathFile, makeDestiny) #CALLS THE BATCH FILE TO MAKE A FORCE COPY USING CMD
         os.system(cmdDir)
-        t = os.path.getmtime(makeDestiny)
-        folder, file_path = os.path.split(makeDestiny)
-        shutil.rmtree(folder)
+        if os.path.isfile(makeDestiny):
+            t = os.path.getmtime(makeDestiny)
+            folder, file_path = os.path.split(makeDestiny)
+            shutil.rmtree(folder)
     return int(t)
 
 def gravaLog(msg, idComputador): #RECORD LOG IN DATABASE
