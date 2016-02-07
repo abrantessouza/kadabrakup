@@ -9,6 +9,7 @@ import MySQLdb as sql
 queryComputador = "SELECT * FROM computador WHERE heavy = 0 AND ignory = 0 ORDER BY name ASC"
 
 conn = sql.connect('127.0.0.1', 'root', '', 'kadabrakup');
+conn.ping(True) #AVOID TO GET "MYSQL GONE AWAY"
 #conn = sql.connect('pwnbackup.db',check_same_thread=False) #CONNECT INTO SQLITE DATABASE
 conn.text_factory = str
 
