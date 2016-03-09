@@ -14,6 +14,7 @@ connt = sql.connect('127.0.0.1', 'root', '', 'kadabrakup');
 cur = connt.cursor()
 #conn = sql.connect('pwnbackup.db',check_same_thread=False) #CONECTA AO BD SQLITE
 connt.text_factory = str
+connt.ping(True)
 
 class TaksBackup(object):
     def __init__(self):
@@ -59,11 +60,13 @@ else:
 """
 startBackup = False
 @route('/')
-def index():
-    global startBackup    
+def index():    
+    global startBackup
+    connt.ping(True)
     queryComputador = "SELECT * FROM computador WHERE heavy = 0 ORDER BY name ASC"
     cur.execute(queryComputador)
     computadores = cur.fetchall()
+    connt.commit()
     btnSet = ""
     if startBackup:
         btnSet = "disabled='disabled'"        
@@ -96,6 +99,7 @@ def start():
 
 @route('/startfullbackup/<idComputador>')
 def startfullbackup(idComputador):
+    connt.ping(True)
     t = TaksBackup()
     f = threading.Thread(target = t.runBackupFull)
     t.idComputador = idComputador
@@ -110,6 +114,7 @@ def startfullbackup(idComputador):
 def stop():
     global startBackup
     global l
+    connt.ping(True)
     l.isRunning = False
     startBackup = False    
     redirect('/')
@@ -117,10 +122,12 @@ def stop():
 @route('/novo')
 def novo():
     computadores = [('','','','','')]
+    connt.ping(True)
     return template('formcomputer', results = computadores, idCp = "")
 
 @route('/editar/<idComputador>')
 def editar(idComputador):
+    connt.ping(True)
     queryEditar = "SELECT * FROM computador WHERE id = %d" %(int(idComputador))
     cur.execute(queryEditar)
     computadores = cur.fetchall()
@@ -130,6 +137,7 @@ def editar(idComputador):
 
 @route('/folders/<idComputador>')
 def folders(idComputador):
+    connt.ping(True)
     queryFolders = "SELECT cp.id, cp.enderecoPasta ,cp.idComputador, co.name FROM copiarpasta cp INNER JOIN computador co ON co.id = cp.idComputador WHERE idComputador = %d " % (int(idComputador))
     cur.execute(queryFolders)
     folders = cur.fetchall()
