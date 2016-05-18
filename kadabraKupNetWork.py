@@ -1,44 +1,22 @@
 # -*- coding: cp1252 -*-
 #import sqlite3 as sql
 import sys, os, shutil, win32api, win32con
-import zipfile, zlib
-import glob
+import zipfile
 from datetime import datetime
 import MySQLdb as sql
 
-queryComputador = "SELECT * FROM computador WHERE heavy = 0 AND ignory = 0 ORDER BY name ASC"
+queryComputador = "SELECT * FROM computador WHERE heavy = 0 ORDER BY name ASC"
 
 conn = sql.connect('127.0.0.1', 'root', '', 'kadabrakup');
-conn.ping(True) #AVOID TO GET "MYSQL GONE AWAY"
-#conn = sql.connect('pwnbackup.db',check_same_thread=False) #CONNECT INTO SQLITE DATABASE
+#conn = sql.connect('pwnbackup.db',check_same_thread=False) #CONECTA AO BD SQLITE
 conn.text_factory = str
 
-def modification_date(filename): #MAC GYVER FUNCTION RETURN THE TIMESTAMP OF MODIFICATED DATE FILE
-    t = 0
-    try:
-        t = os.path.getmtime(filename)
-    except:
-        makeDestiny = "H:\\CopiaChem\\temp"
-        try:
-            shutil.rmtree(makeDestiny)            
-        except:
-            pass
-        os.makedirs(makeDestiny)
-        fullPathDestiny, fullPathFile = os.path.split(filename)
-        newNameFile = fullPathFile.split(".")
-        newNameFile = newNameFile[0][:10] + "." + newNameFile[1] #SUBSTRING THE NAME FILE TO COPY
-        makeDestiny = os.path.join(makeDestiny,newNameFile.replace(" ",""))
-        cmdDir = 'forceCopyFile.bat "%s" "%s" "%s" ' % (fullPathDestiny, fullPathFile, makeDestiny) #CALLS THE BATCH FILE TO MAKE A FORCE COPY USING CMD
-        os.system(cmdDir)
-        if os.path.isfile(makeDestiny):
-            t = os.path.getmtime(makeDestiny)
-            folder, file_path = os.path.split(makeDestiny)
-            shutil.rmtree(folder)
+def modification_date(filename): #RETORNA O TIMESTAMP DO ARQUIVO MOTIDICADO
+    t = os.path.getmtime(filename) 
     return int(t)
 
-def gravaLog(msg, idComputador): #RECORD LOG IN DATABASE
-    msg = msg.replace("\\","/")
-    msg = msg.replace("'", "''")
+def gravaLog(msg, idComputador):
+    msg = msg.replace("\\","\\\\")
     cur = conn.cursor()
     dataHoje = datetime.now()
     dateHojeBr = str(dataHoje.day) + "/" + str(dataHoje.month) + "/" + str(dataHoje.year) + "_"+ str(dataHoje.hour) +":"+ str(dataHoje.minute)
@@ -52,10 +30,9 @@ def gravaLog(msg, idComputador): #RECORD LOG IN DATABASE
             cur.execute("INSERT INTO logs (mensagem, idComputador, data) VALUES ('%s', %d, '%s') " % (str(mensg), int(idComputador), dateHojeBr) )
             conn.commit()
         except:
-            conn.commit()
             pass        
     except:
-        print "Erro ao gravar o log"
+        print "Erro ao grabar o log"
 
 def getTotalFilesSource(idComputador):
     countFiles = True
@@ -80,17 +57,17 @@ def calcPercentagemFiles(i, totalFiles):
 
 
 
-def zipdir(path, ziph):   # ZIP AND COMPRESS BACKUP FOLDER
+def zipdir(path, ziph):   
     for root, dirs, files in os.walk(path):
         for file in files:
-            ziph.write(os.path.join(root, file), compress_type=zipfile.ZIP_DEFLATED)
+            ziph.write(os.path.join(root, file))
 
-def makeZipMove(nameFile, folderDestTemp, folderDest, computadadorNome, idComputador): #IT CALLS THE ZIPDIR FUNCTION, DELETE TEMP FILES AND MOVE THE ZIP GENERATED TO DESTINY FOLDER.
+def makeZipMove(nameFile, folderDestTemp, folderDest, computadadorNome, idComputador):
     cur = conn.cursor()
     dataHoje = datetime.now()
     os.chmod(folderDestTemp, 0o777)        
     #gravaLog("Forcing Zip the Directory |  Erro: "+str(e), idComputador)
-    zf = zipfile.ZipFile(nameFile+'.zip', mode='w',allowZip64=True)
+    zf = zipfile.ZipFile(nameFile+'.zip', mode='w', allowZip64=True)
     zipdir(folderDestTemp, zf)
     zf.close()
     shutil.move(nameFile+".zip",folderDest)
@@ -110,7 +87,7 @@ def makeZipMove(nameFile, folderDestTemp, folderDest, computadadorNome, idComput
     gravaLog("BACKUP do "+computadadorNome+" FINALIZADO", idComputador)
    
 
-def backupFull(idComputador): #RUN THE FULL BACKUP
+def backupFull(idComputador):
     queryComputador = "SELECT * FROM computador"
     if idComputador:
         queryComputador += " WHERE id = %d" % (int(idComputador))
@@ -159,6 +136,7 @@ def backupFull(idComputador): #RUN THE FULL BACKUP
                     sourceFile = sourceFileRaw.replace("'","''")
                     try:
                         cur.execute("INSERT INTO arquivos (idPasta, caminhoArquivo, timestamp) VALUES ('"+str(f[0])+"', '"+sourceFile.replace("\\","\\\\")+"', '"+str(modification_date(sourceFileRaw))+"' )" )
+                        
                     except Exception as e:
                         print sourceFile
                         print str(e)            
@@ -167,44 +145,15 @@ def backupFull(idComputador): #RUN THE FULL BACKUP
         nameFile = nameFile = c[1]+"_full_"+dateHoje
         folderDest = c[2]+"\\"+c[1]+"\\Backup"
         makeZipMove(nameFile, folderDest, c[2]+"\\"+c[1], c[1], c[0])
-
-
-def copyIncremental(makeDestiny, fullPathRaw, fullPath, timeStampRemote, timestamp, idComputador): #SIMPLE METHOD OF COPY JUST TO MAKE A CLEAN CODE     
-    makeDestiny, makeDestinyFileName = os.path.split(makeDestiny)    
-    if(not(os.path.exists(makeDestiny))):
-        try:
-            os.makedirs(makeDestiny)
-        except Exception as e:
-            gravaLog(str(e).replace("\\","/"),idComputador)
-    try:        
-        shutil.copy2(fullPath.replace("''","'"), makeDestiny)
-        timestamp = modification_date(fullPathRaw)
-    except Exception as e:
-        #PROBABLY THE EXCEPTION OCCURIED BECAUSE THE FILE'S NAME IS TOO LARGE
-        gravaLog(""+ str(e).replace("\\","/") + ". Running Force Large File Copy",idComputador)
-        fullPathDestiny, fullPathFile = os.path.split(fullPath)
-        newNameFile = fullPathFile.split(".")
-        newNameFile = newNameFile[0][:10] + "." + newNameFile[1] #SUBSTRING THE NAME FILE TO COPY
-        makeDestiny = os.path.join(makeDestiny,newNameFile.replace(" ",""))
-        cmdDir = 'forceCopyFile.bat "%s" "%s" "%s" ' % (fullPathDestiny, fullPathFile, makeDestiny) #CALLS THE BATCH FILE TO MAKE A FORCE COPY USING CMD
-        os.system(cmdDir)
-        timestamp = modification_date(makeDestiny)
-    except Exception as e:
-        gravaLog("Erro ao copiar: "+ str(e).replace("\\","/"),idComputador)
-    #RETURN THE TIMESTAMP OF COPIED FILE
-    return str(timestamp)
-    
-        
-
-
+           
                 
-def backupIncremental(idComputador): # RUN THE BACKUP INCREMENTAL
+def backupIncremental(idComputador):
     gravaLog("BACKUP INCREMENTAL do iniciado", idComputador)
     cur = conn.cursor()
     queryComputador = "SELECT * FROM computador"
     cur.execute("UPDATE computador SET status='Fazendo Backup Incremental' WHERE id = "+str(idComputador))
     conn.commit()
-    #totalFiles = getTotalFilesSource(idComputador)
+    totalFiles = getTotalFilesSource(idComputador)
     if idComputador:
         queryComputador += " WHERE id = %d" % (int(idComputador))
     else:
@@ -218,8 +167,8 @@ def backupIncremental(idComputador): # RUN THE BACKUP INCREMENTAL
         folderDestiny = folderDest + "\\Backup\\"
     try:
         shutil.rmtree(folderDestiny)
-    except Exception as e:
-        print str(e)
+    except:
+        pass
     #executa o backup incremental
     
     queryFolders  = "SELECT * FROM copiarpasta WHERE idComputador = % d" % (idComputador)
@@ -233,14 +182,6 @@ def backupIncremental(idComputador): # RUN THE BACKUP INCREMENTAL
     i = 0
    
     for f in folders:
-        queryCheckFile = "SELECT id, caminhoArquivo, timestamp FROM arquivos WHERE idPasta = %d " % (f[0])
-        colunas = ["id", "caminhoArquivo", "timestamp"]
-        cur.execute(queryCheckFile)
-        rowsFiles = cur.fetchall()
-        teste = [dict(zip(colunas,rows)) for rows in rowsFiles]
-        lista = list()
-        for t in teste:                    
-            lista.append(t['caminhoArquivo'])
         for path, dirr, files in os.walk(f[2]):
             for fi in files:   
                 fullPathRaw = os.path.join(path,fi)                
@@ -249,32 +190,69 @@ def backupIncremental(idComputador): # RUN THE BACKUP INCREMENTAL
                 del rootfolder[0]
                 del rootfolder[0]                
                 rootfolder = "\\".join(rootfolder)
-                fullPath = fullPathRaw.replace("'","''") 
+                fullPath = fullPathRaw.replace("'","''")
+                queryCheckFile = "SELECT * FROM arquivos WHERE idPasta = %d AND caminhoArquivo = '%s' " % (f[0], fullPath.replace("\\","\\\\"))
+                cur.execute(queryCheckFile)
+                rowFile = cur.fetchall()
                 makeDestiny = folderDestiny+rootfolder
-                if fullPathRaw in lista:
-                     for id, caminhoArquivo, timestamp in rowsFiles:
-                         if fullPathRaw == caminhoArquivo:
-                             #print caminhoArquivo
-                             timeStampRemote = str(int(modification_date(fullPathRaw)))
-                             if int(timestamp) < int(timeStampRemote):
-                                 copyIncremental(makeDestiny, fullPathRaw, fullPath, timeStampRemote, timestamp, idComputador)
-                                 with conn:
-                                    try:
-                                        cur.execute("UPDATE arquivos SET timestamp = '"+str(timeStampRemote)+"' WHERE id ='"+str(id)+"'")
-                                        conn.commit()
-                                    except Exception as e:
-                                        print "Erro ao Atualizar"
-                                        print str(e)
-                                 
+                status = calcPercentagemFiles(i, totalFiles)
+                i = i + 1
+                queryUpdateStatus = "UPDATE computador SET status='"+status+"' WHERE id = '"+str(idComputador)+"'"                
+                with conn:
+                    cur.execute(queryUpdateStatus)
+                    conn.commit()
+                if len(rowFile) < 1:
+                    try:
+                        makeDestiny = makeDestiny.split("\\")                        
+                        del makeDestiny[-1]
+                        makeDestiny = "\\".join(makeDestiny)
+                        print "Criando Novo "+makeDestiny
+                        os.makedirs(makeDestiny)
+                    except Exception as e:
+                        print "PEi!!!"
+                        print str(e)
+                    try:
+                        
+                        shutil.copy2(fullPath.replace("''","'"),makeDestiny)
+                        with conn:
+                            try:
+                                cur.execute("INSERT INTO arquivos (idPasta, caminhoArquivo, timestamp) VALUES ('"+str(f[0])+"', '"+fullPath.replace("\\","\\\\")+"', '"+str(modification_date(fullPathRaw))+"' )" )
+                                cur.execute(queryUpdateStatus)                
+                                conn.commit()
+                            except :
+                                pass
+                    except Exception as e:
+                        gravaLog(str(e), idComputador) 
                 else:
-                    timestampRemote = copyIncremental(makeDestiny, fullPathRaw, fullPath, timeStampRemote, timestamp, idComputador)                    
-                    with conn:
-                        try:
-                            cur.execute("INSERT INTO arquivos (idPasta, caminhoArquivo, timestamp) VALUES ('"+str(f[0])+"', '"+fullPath.replace("\\","\\\\")+"', '"+str(timestampRemote)+"' )" )
+                    makeDestiny = folderDestiny+rootfolder
+                    idArquivos, idPasta, caminho, timeStampDb = rowFile[0]
+                    timeStampDb = str(int(timeStampDb))
+                    try:
+                        timeStampRemote = str(int(modification_date(fullPathRaw.replace("\\","\\\\"))))
+                    except:
+                        timeStampRemote = timeStampDb                   
+                    
+                    if timeStampRemote != timeStampDb: #COMPARAÇÃO COM AS DADAS DE MODIFICAÇOES
+                        with conn:
+                            cur.execute("UPDATE arquivos SET timestamp = '"+str(modification_date(fullPathRaw))+"' WHERE caminhoArquivo ='"+fullPath.replace("\\","\\\\")+"'")
+                            cur.execute(queryUpdateStatus)
                             conn.commit()
+                        try:
+                            makeDestiny = makeDestiny.split("\\")
+                            del makeDestiny[-1]
+                            makeDestiny = "\\".join(makeDestiny)
+                            print "Substituindo "+makeDestiny
+                            subdirs = path.replace(f[2],"")                                                         
+                            os.makedirs(makeDestiny)
+                           
                         except Exception as e:
-                            print "Erro ao inserir"
                             print str(e)
+                        try:
+                            subdirs = path.replace(f[2],"")                             
+                            shutil.copy2(fullPathRaw,makeDestiny)
+                        except Exception as e:
+                            print str(e)                   
+     
     nameFile =  nomeComputador+"_incremental_"+dateHoje    
     try:
         makeZipMove(nameFile, folderDestiny, folderDest, nomeComputador, idComputador)
@@ -299,8 +277,12 @@ def counterFiles(idComputador):
             
             
 
-def taskBackup(): 
-    with conn:
+    
+
+
+def taskBackup():
+    finished = False
+    with conn:        
         cur = conn.cursor() #ATIVA O CURSOR DO SQLITE
         cur.execute(queryComputador) #EXECUTA A QUERY PARA LISTAR OS ALIAS DAS MAQUINAS REMOTAS QUE DEVEM EXECUTAR O BACKUP
         comp = cur.fetchall()
@@ -326,16 +308,13 @@ def taskBackup():
                 if lenRowsFiles == 0:
                     backupFull(c[0])
                 else:
-                    backupIncremental(c[0])
-                conn.commit()
+                    backupIncremental(c[0])                
             else:
                 cur.execute("UPDATE computador SET status='Falha no Backup' WHERE id = "+str(c[0]))
                 conn.commit()
                 gravaLog("Verifique se o computador remoto esta desligado ", str(c[0]))
-
-             
-       
-                
+            finished = True
+        return finished
               
           
                 

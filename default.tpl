@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Page Title</title>
+<title>KadabraKup</title>
 
 
 <link rel="stylesheet" href="http://localhost:8180/bootstrap.css" >
@@ -36,7 +36,7 @@ body {
             <li class="active"><a href="/">Principal</a></li>
             <li><a href="/about">Sobre</a></li>
 			<li><a href="/heavy">Backups Pesados</a></li>
-			<li><a href="/light">Backups Leves</a></li>
+			<li><a href="/light">Todos os Backups</a></li>
 			
           </ul>
         </div><!--/.nav-collapse -->

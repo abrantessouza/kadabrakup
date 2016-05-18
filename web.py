@@ -6,6 +6,7 @@ from bottle import route, run, debug, template, static_file, get, request, redir
 import kadabraKupNetWork
 import threading
 import MySQLdb as sql
+import time
 
 
 queryComputador = "SELECT * FROM computador"
@@ -14,17 +15,25 @@ connt = sql.connect('127.0.0.1', 'root', '', 'kadabrakup');
 cur = connt.cursor()
 #conn = sql.connect('pwnbackup.db',check_same_thread=False) #CONECTA AO BD SQLITE
 connt.text_factory = str
-connt.ping(True)
 
 class TaksBackup(object):
     def __init__(self):
      self.isRunning = True
      self.isRunningFull = True
      self.idComputador = ""
+     self.day = time.strftime('%d')
 
     def runForever(self):
-       while self.isRunning == True:
-          kadabraKupNetWork.taskBackup()
+        while self.isRunning == True:
+            finished = kadabraKupNetWork.taskBackup()            
+            if(finished == True):
+                curday = time.strftime("%d")
+                print curday, self.day
+                if curday == self.day:
+                    self.isRunning = False
+                
+                
+           
     def runBackupFull(self):
         if self.isRunningFull == True:
             kadabraKupNetWork.backupFull(self.idComputador)
@@ -60,15 +69,19 @@ else:
 """
 startBackup = False
 @route('/')
-def index():    
-    global startBackup
-    connt.ping(True)
-    queryComputador = "SELECT * FROM computador WHERE heavy = 0 ORDER BY name ASC"
+def index():
+    global startBackup    
+    queryComputador = "SELECT * FROM computador ORDER BY name ASC"
     cur.execute(queryComputador)
-    computadores = cur.fetchall()
     connt.commit()
+    computadores = cur.fetchall()    
     btnSet = ""
     if startBackup:
+        curday = time.strftime("%d")
+        if l.isRunning == False:
+            if l.day != curday:
+                l.isRunning = True
+                l.day = curday
         btnSet = "disabled='disabled'"        
     else:
         pass
@@ -99,7 +112,6 @@ def start():
 
 @route('/startfullbackup/<idComputador>')
 def startfullbackup(idComputador):
-    connt.ping(True)
     t = TaksBackup()
     f = threading.Thread(target = t.runBackupFull)
     t.idComputador = idComputador
@@ -109,25 +121,21 @@ def startfullbackup(idComputador):
     redirect('/')
     
 
-
 @route('/stopbackup')
 def stop():
     global startBackup
     global l
-    connt.ping(True)
     l.isRunning = False
-    startBackup = False    
+    startBackup = False
     redirect('/')
 
 @route('/novo')
 def novo():
     computadores = [('','','','','')]
-    connt.ping(True)
     return template('formcomputer', results = computadores, idCp = "")
 
 @route('/editar/<idComputador>')
 def editar(idComputador):
-    connt.ping(True)
     queryEditar = "SELECT * FROM computador WHERE id = %d" %(int(idComputador))
     cur.execute(queryEditar)
     computadores = cur.fetchall()
@@ -137,7 +145,6 @@ def editar(idComputador):
 
 @route('/folders/<idComputador>')
 def folders(idComputador):
-    connt.ping(True)
     queryFolders = "SELECT cp.id, cp.enderecoPasta ,cp.idComputador, co.name FROM copiarpasta cp INNER JOIN computador co ON co.id = cp.idComputador WHERE idComputador = %d " % (int(idComputador))
     cur.execute(queryFolders)
     folders = cur.fetchall()
@@ -225,34 +232,25 @@ def savefolder():
 def about():
     return template("containerabout")
 
-@route("/clickSenderIng", method='POST')
-def setComputadorIgnore():
-    idComputador = request.forms.get("idComputador")
-    checkBoxIgn = request.forms.get("valueFied")
-    print idComputador, checkBoxIgn
-    queryUpdateIgn = "UPDATE computador SET ignory = %d WHERE id = %d " % (int(checkBoxIgn), int(idComputador))
-    cur.execute(queryUpdateIgn)
-    connt.commit()
-
 @route('/savecomputer', method='POST')
 def savecomputer():
     idComputador = request.forms.get("idcomputador")
     computador = request.forms.get("computador")
     heavy_check = request.forms.get("heavy")
-    if idComputador == "":
-        idComputador = 0
+    print idComputador, heavy_check
     if heavy_check == None:
         heavy_check = 0
     else:
         heavy_check = 1
-   
+
+    print idComputador, heavy_check
     destino = request.forms.get('destino')
     destino = destino.replace("\\","\\\\")
     msg = ""
     queryComputadorInsert = "INSERT INTO computador (name, destino,heavy) VALUES ('%s','%s',%d)" % (computador, destino, heavy_check)
     queryComputadorUpdate = "UPDATE computador SET name = '%s', destino= '%s', heavy = %d WHERE id = %d" % (computador, destino,heavy_check, int(idComputador))   
     
-    if idComputador == "" or idComputador == 0:
+    if idComputador == "":
         act = cur.execute(queryComputadorInsert)            
     else:
         act = cur.execute(queryComputadorUpdate)
