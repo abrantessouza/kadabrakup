@@ -15,6 +15,7 @@ connt = sql.connect('127.0.0.1', 'root', '', 'kadabrakup');
 cur = connt.cursor()
 #conn = sql.connect('pwnbackup.db',check_same_thread=False) #CONECTA AO BD SQLITE
 connt.text_factory = str
+connt.ping(True)
 
 class TaksBackup(object):
     def __init__(self):
@@ -31,9 +32,7 @@ class TaksBackup(object):
                 print curday, self.day
                 if curday == self.day:
                     self.isRunning = False
-                
-                
-           
+                    
     def runBackupFull(self):
         if self.isRunningFull == True:
             kadabraKupNetWork.backupFull(self.idComputador)
@@ -57,7 +56,6 @@ queryFolders = "SELECT * FROM copiarpasta"
 cur.execute(queryFolders)
 folders = cur.fetchall()
 runBackup = True
-
 if len(folders) > 0:
     while runBackup:
         t.start()
@@ -71,16 +69,10 @@ startBackup = False
 @route('/')
 def index():
     global startBackup    
-<<<<<<< HEAD
     queryComputador = "SELECT * FROM computador ORDER BY name ASC"
     cur.execute(queryComputador)
     connt.commit()
     computadores = cur.fetchall()    
-=======
-    queryComputador = "SELECT * FROM computador WHERE heavy = 0 ORDER BY name ASC"
-    cur.execute(queryComputador)
-    computadores = cur.fetchall()
->>>>>>> parent of 1e7e84d... Try Fix Mysql gone away bug
     btnSet = ""
     if startBackup:
         curday = time.strftime("%d")
@@ -95,6 +87,15 @@ def index():
         #cur.execute(queryUpdateAllStatus)
         #connt.commit()
     return template('containercomputers',runingBackup = btnSet, results = computadores)
+
+@route('/startfull')
+def startFull():
+    queryDeleteFull = "DELETE ar FROM arquivos ar INNER JOIN copiarpasta cp ON  ar.idPasta = cp.id INNER JOIN computador c ON c.id = cp.idComputador WHERE heavy = 1;"
+    connt.ping(True)
+    cur.execute(queryDeleteFull)
+    connt.commit()
+    redirect('/startbackup')
+
 
 @route('/heavy')
 def heavy():    
@@ -118,6 +119,7 @@ def start():
 
 @route('/startfullbackup/<idComputador>')
 def startfullbackup(idComputador):
+    connt.ping(True)
     t = TaksBackup()
     f = threading.Thread(target = t.runBackupFull)
     t.idComputador = idComputador
@@ -127,21 +129,25 @@ def startfullbackup(idComputador):
     redirect('/')
     
 
+
 @route('/stopbackup')
 def stop():
     global startBackup
     global l
+    connt.ping(True)
     l.isRunning = False
-    startBackup = False
+    startBackup = False    
     redirect('/')
 
 @route('/novo')
 def novo():
     computadores = [('','','','','')]
+    connt.ping(True)
     return template('formcomputer', results = computadores, idCp = "")
 
 @route('/editar/<idComputador>')
 def editar(idComputador):
+    connt.ping(True)
     queryEditar = "SELECT * FROM computador WHERE id = %d" %(int(idComputador))
     cur.execute(queryEditar)
     computadores = cur.fetchall()
@@ -151,6 +157,7 @@ def editar(idComputador):
 
 @route('/folders/<idComputador>')
 def folders(idComputador):
+    connt.ping(True)
     queryFolders = "SELECT cp.id, cp.enderecoPasta ,cp.idComputador, co.name FROM copiarpasta cp INNER JOIN computador co ON co.id = cp.idComputador WHERE idComputador = %d " % (int(idComputador))
     cur.execute(queryFolders)
     folders = cur.fetchall()
@@ -238,25 +245,34 @@ def savefolder():
 def about():
     return template("containerabout")
 
+@route("/clickSenderIng", method='POST')
+def setComputadorIgnore():
+    idComputador = request.forms.get("idComputador")
+    checkBoxIgn = request.forms.get("valueFied")
+    print idComputador, checkBoxIgn
+    queryUpdateIgn = "UPDATE computador SET ignory = %d WHERE id = %d " % (int(checkBoxIgn), int(idComputador))
+    cur.execute(queryUpdateIgn)
+    connt.commit()
+
 @route('/savecomputer', method='POST')
 def savecomputer():
     idComputador = request.forms.get("idcomputador")
     computador = request.forms.get("computador")
     heavy_check = request.forms.get("heavy")
-    print idComputador, heavy_check
+    if idComputador == "":
+        idComputador = 0
     if heavy_check == None:
         heavy_check = 0
     else:
         heavy_check = 1
-
-    print idComputador, heavy_check
+   
     destino = request.forms.get('destino')
     destino = destino.replace("\\","\\\\")
     msg = ""
     queryComputadorInsert = "INSERT INTO computador (name, destino,heavy) VALUES ('%s','%s',%d)" % (computador, destino, heavy_check)
     queryComputadorUpdate = "UPDATE computador SET name = '%s', destino= '%s', heavy = %d WHERE id = %d" % (computador, destino,heavy_check, int(idComputador))   
     
-    if idComputador == "":
+    if idComputador == "" or idComputador == 0:
         act = cur.execute(queryComputadorInsert)            
     else:
         act = cur.execute(queryComputadorUpdate)
@@ -269,4 +285,3 @@ def error():
     return template('containererror')
 
 run(host='localhost', port=8180)
-
