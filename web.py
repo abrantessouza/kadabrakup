@@ -71,10 +71,16 @@ startBackup = False
 @route('/')
 def index():
     global startBackup    
+<<<<<<< HEAD
     queryComputador = "SELECT * FROM computador ORDER BY name ASC"
     cur.execute(queryComputador)
     connt.commit()
     computadores = cur.fetchall()    
+=======
+    queryComputador = "SELECT * FROM computador WHERE heavy = 0 ORDER BY name ASC"
+    cur.execute(queryComputador)
+    computadores = cur.fetchall()
+>>>>>>> parent of 1e7e84d... Try Fix Mysql gone away bug
     btnSet = ""
     if startBackup:
         curday = time.strftime("%d")
