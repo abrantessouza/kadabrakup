@@ -1,5 +1,5 @@
 # -*- coding: cp1252 -*-
-import sqlite3 as sql
+#import sqlite3 as sql
 import sys, os, shutil
 from datetime import datetime
 from bottle import route, run, debug, template, static_file, get, request, redirect
@@ -25,13 +25,9 @@ class TaksBackup(object):
      self.day = time.strftime('%d')
 
     def runForever(self):
-        while self.isRunning == True:
-            finished = kadabraKupNetWork.taskBackup()            
-            if(finished == True):
-                curday = time.strftime("%d")
-                print curday, self.day
-                if curday == self.day:
-                    self.isRunning = False
+         while self.isRunning == True:
+             kadabraKupNetWork.taskBackup()
+            
                     
     def runBackupFull(self):
         if self.isRunningFull == True:
@@ -86,11 +82,12 @@ def index():
         #queryUpdateAllStatus = "UPDATE computador SET status = 'None' WHERE heavy = 0 "
         #cur.execute(queryUpdateAllStatus)
         #connt.commit()
+
     return template('containercomputers',runingBackup = btnSet, results = computadores)
 
 @route('/startfull')
 def startFull():
-    queryDeleteFull = "DELETE ar FROM arquivos ar INNER JOIN copiarpasta cp ON  ar.idPasta = cp.id INNER JOIN computador c ON c.id = cp.idComputador WHERE heavy = 1;"
+    queryDeleteFull = "DELETE ar FROM arquivos ar INNER JOIN copiarpasta cp ON  ar.idPasta = cp.id INNER JOIN computador c ON c.id = cp.idComputador WHERE heavy = 0;"
     connt.ping(True)
     cur.execute(queryDeleteFull)
     connt.commit()
@@ -114,17 +111,25 @@ def start():
     t.start()
     l.isRunning = True
     startBackup = True
+    with connt:
+        queryUpdateAllStatus = "UPDATE computador SET status = 'Na Fila' WHERE heavy = 0 and ignory = 0 "
+        cur.execute(queryUpdateAllStatus)
+        connt.commit()
     redirect('/')
     
 
 @route('/startfullbackup/<idComputador>')
 def startfullbackup(idComputador):
-    connt.ping(True)
+    connt.ping(True)    
     t = TaksBackup()
     f = threading.Thread(target = t.runBackupFull)
     t.idComputador = idComputador
     t.isRunningFull = True
     f.start()
+    with connt:
+        queryUpdateAllStatus = "UPDATE computador SET status = 'Na Fila' WHERE heavy = 0 "
+        cur.execute(queryUpdateAllStatus)
+        connt.commit()
     #t.isRunningFull = False    
     redirect('/')
     
@@ -136,7 +141,13 @@ def stop():
     global l
     connt.ping(True)
     l.isRunning = False
-    startBackup = False    
+    startBackup = False
+    with connt:
+        queryUpdateAllStatus = "UPDATE computador SET status = 'Serviço Parado' WHERE heavy = 0 and ignory = 0 "
+        cur.execute(queryUpdateAllStatus)
+        connt.commit()
+    cmdDir = 'process.bat' #KILL THE PROCESS AND RESTART
+    os.system(cmdDir)
     redirect('/')
 
 @route('/novo')
@@ -197,7 +208,7 @@ def apagar(idComputador):
 
 @route('/logs/<idComputador>')
 def logs(idComputador):
-    queryLogs = "SELECT c.name, l.mensagem, l.data FROM logs l INNER JOIN computador c ON l.idComputador = c.id  WHERE idComputador = %d ORDER BY l.id DESC" % (int(idComputador))
+    queryLogs = "SELECT c.name, l.mensagem, l.data FROM logs l INNER JOIN computador c ON l.idComputador = c.id  WHERE idComputador = %d ORDER BY l.id DESC LIMIT 1, 300" % (int(idComputador))
     cur.execute(queryLogs)
     logs = cur.fetchall()
     return template('containerlogs', results = logs, acao = "Visualizar Logs")
@@ -218,6 +229,9 @@ def apagarpasta(idPasta):
 def stylesheets(filename):
     return static_file(filename, root='./bootstrap/css')
 
+@route('/img/<filepath:path>')
+def server_static(filepath):
+    return static_file(filepath, root='img/')
 
 
 

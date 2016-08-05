@@ -1,12 +1,13 @@
 # -*- coding: cp1252 -*-
 #import sqlite3 as sql
 
-import sqlite3 as sql
+#import sqlite3 as sql
 import sys, os, shutil, win32api, win32con
 import zipfile, zlib
 import glob
 from datetime import datetime
 import MySQLdb as sql
+import zipstream
 
 queryComputador = "SELECT * FROM computador WHERE heavy = 0 AND ignory = 0 ORDER BY name ASC"
 
@@ -20,7 +21,7 @@ def modification_date(filename): #MAC GYVER FUNCTION RETURN THE TIMESTAMP OF MOD
     try:
         t = os.path.getmtime(filename)
     except:
-        makeDestiny = "H:\\CopiaChem\\temp"
+        makeDestiny = "E:\\CopiaChem\\temp"
         try:
             shutil.rmtree(makeDestiny)            
         except:
@@ -43,9 +44,7 @@ def gravaLog(msg, idComputador): #RECORD LOG IN DATABASE
     msg = msg.replace("'", "''")
     cur = conn.cursor()
     dataHoje = datetime.now()
-    dateHojeBr = str(dataHoje.day) + "/" + str(dataHoje.month) + "/" + str(dataHoje.year) + "_"+ str(dataHoje.hour) +":"+ str(dataHoje.minute)
-    queryUpdateStatus = "UPDATE computador SET status='Finalizado' WHERE id = '"+str(idComputador)+"'"
-    cur.execute(queryUpdateStatus)
+    dateHojeBr = str(dataHoje.day) + "/" + str(dataHoje.month) + "/" + str(dataHoje.year) + "_"+ str(dataHoje.hour) +":"+ str(dataHoje.minute)    
     try:
         cur.execute("INSERT INTO logs (mensagem, idComputador, data) VALUES ('%s', %d, '%s') " % (str(msg), int(idComputador), dateHojeBr) )
         conn.commit()
@@ -114,63 +113,83 @@ def makeZipMove(nameFile, folderDestTemp, folderDest, computadadorNome, idComput
     gravaLog("BACKUP do "+computadadorNome+" FINALIZADO", idComputador)
    
 
+def updateStatus(string, idComputador):
+    with conn:
+        cur = conn.cursor()
+        query = "UPDATE computador SET status='%s' WHERE id = %d" % (string, int(idComputador))
+        cur.execute(query)
+        conn.commit()
+
 def backupFull(idComputador): #RUN THE FULL BACKUP
-    queryComputador = "SELECT * FROM computador"
-    if idComputador:
-        queryComputador += " WHERE id = %d" % (int(idComputador))
-    else:
-        pass
-    cur = conn.cursor()
-    cur.execute(queryComputador)
-    comp = cur.fetchall()
-    for c in comp:
-        #totalFiles = getTotalFilesSource(c[0])
-        folderDest = c[2]+"\\"+c[1]+"\\Backup"
-        try:
-            shutil.rmtree(folderDest)
-        except:
-            pass
-        queryFolders = "SELECT * FROM copiarpasta WHERE idComputador = %d " % (c[0])
-        dataHoje = datetime.now()
-        dateHoje = str(dataHoje.year) + "_" + str(dataHoje.month) + "_" + str(dataHoje.day) + "_"+ str(dataHoje.hour) +"_"+ str(dataHoje.minute)        
-        cur.execute(queryFolders)
-        folders = cur.fetchall()        
-        cur.execute("UPDATE computador SET status='Preparando Backup' WHERE id = "+str(c[0]))
-        conn.commit()
-        j = 0
-        for f in folders:
-            root = f[2].split("\\")
-            del root[0]
-            del root[0]
-            del root[0]
-            root = "\\".join(root)
-            print root
-            cur.execute("UPDATE computador SET status='Fazendo Backup' WHERE id = "+str(c[0]))           
-            gravaLog("BACKUP FULL do "+c[1]+" iniciado -> "+f[2], c[0])
-            cur.execute("DELETE FROM arquivos WHERE idPasta = %d " % (f[0]))
-            #cur.execute("VACUUM;")
-            conn.commit()            
-            folderDest = c[2]+"\\"+c[1]+"\\Backup" + "\\" + root  #pasta de destino
-            try:
-                shutil.copytree(f[2], folderDest)
-            except:
-                msg = "Falha ao gravavar log"
-                gravaLog(msg, idComputador)
+    dataHoje = datetime.now()
+    dateHoje = str(dataHoje.year) + "_" + str(dataHoje.month) + "_" + str(dataHoje.day) + "_"+ str(dataHoje.hour) +"_"+ str(dataHoje.minute)
+    with conn:       
+        queryComputador = "SELECT * FROM computador"
         
-            for path, dirr, files in os.walk(f[2]):
-                for fi in files:                    
-                    sourceFileRaw = os.path.join(path, fi)
-                    sourceFile = sourceFileRaw.replace("'","''")
-                    try:
-                        cur.execute("INSERT INTO arquivos (idPasta, caminhoArquivo, timestamp) VALUES ('"+str(f[0])+"', '"+sourceFile.replace("\\","\\\\")+"', '"+str(modification_date(sourceFileRaw))+"' )" )
-                    except Exception as e:
-                        print sourceFile
-                        print str(e)            
-        cur.execute("UPDATE computador SET status='Compactando os Arquivos' WHERE id = "+str(c[0]))
-        conn.commit()
-        nameFile = nameFile = c[1]+"_full_"+dateHoje
-        folderDest = c[2]+"\\"+c[1]+"\\Backup"
-        makeZipMove(nameFile, folderDest, c[2]+"\\"+c[1], c[1], c[0])
+        if idComputador:
+            queryComputador += " WHERE id = %d" % (int(idComputador))
+        else:
+            pass
+        cur = conn.cursor()
+        cur.execute(queryComputador)
+        comp = cur.fetchall()
+        for c in comp:            
+            folderDest = c[2]+"\\"+c[1]+"\\"+c[1]+"_full_"+dateHoje+".zip"
+            if(not(os.path.exists(c[2]+"\\"+c[1]))):
+                try:
+                    os.makedirs(c[2]+"\\"+c[1])
+                except Exception as e:
+                    gravaLog(str(e).replace("\\","/"),idComputador)
+            totalFiles = getTotalFilesSource(int(c[0]))            
+            queryFolders = "SELECT * FROM copiarpasta WHERE idComputador = %d " % (c[0])
+            dataHoje = datetime.now()
+            dateHoje = str(dataHoje.year) + "_" + str(dataHoje.month) + "_" + str(dataHoje.day) + "_"+ str(dataHoje.hour) +"_"+ str(dataHoje.minute)        
+            cur.execute(queryFolders)
+            folders = cur.fetchall()
+            updateStatus("Executando Backup Full", int(idComputador))
+            conn.commit()
+            j = 0
+            i = 0
+            zf = zipfile.ZipFile(folderDest, mode='w',allowZip64=True)
+    
+            for f in folders:
+                root = f[2].split("\\")
+                del root[0]
+                del root[0]
+                del root[0]
+                root = "\\".join(root)
+                print root
+                cur.execute("UPDATE computador SET status='Fazendo Backup' WHERE id = "+str(c[0]))           
+                gravaLog("BACKUP FULL do "+c[1]+" iniciado -> "+f[2], c[0])
+                cur.execute("DELETE FROM arquivos WHERE idPasta = %d " % (f[0]))
+                #cur.execute("VACUUM;")
+                conn.commit()            
+                
+                for path, dirr, files in os.walk(f[2]):
+                    for fi in files: 
+                        sourceFileRaw = os.path.join(path, fi)
+                        try:
+                            zf.write(sourceFileRaw, compress_type=zipfile.ZIP_DEFLATED)
+                        except Exception as e:
+                            gravaLog(str(e).replace("\\","/"),int(c[0]))
+                        sourceFile = sourceFileRaw.replace("'","''")
+                        status = calcPercentagemFiles(i, totalFiles)
+                        i = i + 1
+                        queryUpdateStatus = "UPDATE computador SET status=' "+status+"' WHERE id = '"+str(c[0])+"'"
+                        cur.execute(queryUpdateStatus)
+                        conn.commit()
+                        
+                        try:
+                            cur.execute("INSERT INTO arquivos (idPasta, caminhoArquivo, timestamp) VALUES ('"+str(f[0])+"', '"+sourceFile.replace("\\","\\\\")+"', '"+str(modification_date(sourceFileRaw))+"' )" )
+                        except Exception as e:
+                            print sourceFile
+                            print str(e)  
+            conn.commit()
+            zf.close()
+            #nameFile = nameFile = c[1]+"_full_"+dateHoje
+            #folderDest = c[2]+"\\"+c[1]+"\\Backup"
+            #makeZipMove(nameFile, folderDest, c[2]+"\\"+c[1], c[1], c[0])
+            cur.execute("UPDATE computador SET status='Finalizado "+str(dataHoje)+"' WHERE id = "+str(c[0]))
 
 
 def copyIncremental(makeDestiny, fullPathRaw, fullPath, timeStampRemote, timestamp, idComputador): #SIMPLE METHOD OF COPY JUST TO MAKE A CLEAN CODE     
@@ -257,7 +276,7 @@ def backupIncremental(idComputador): # RUN THE BACKUP INCREMENTAL
                 makeDestiny = folderDestiny+rootfolder
                 status = calcPercentagemFiles(i, totalFiles)
                 i = i + 1
-                queryUpdateStatus = "UPDATE computador SET status='"+status+"' WHERE id = '"+str(idComputador)+"'"                
+                queryUpdateStatus = "UPDATE computador SET status= '"+status+"' WHERE id = '"+str(idComputador)+"'"                
                 with conn:
                     cur.execute(queryUpdateStatus)
                     conn.commit()
@@ -289,6 +308,9 @@ def backupIncremental(idComputador): # RUN THE BACKUP INCREMENTAL
     nameFile =  nomeComputador+"_incremental_"+dateHoje    
     try:
         makeZipMove(nameFile, folderDestiny, folderDest, nomeComputador, idComputador)
+        with conn:
+            cur.execute("UPDATE computador SET status='Finalizado "+str(dataHoje)+"' WHERE id = "+str(c[0]))
+            conn.commit
     except Exception as e:
         gravaLog("Sem Backup para gravar", c[0])
 
@@ -311,11 +333,13 @@ def counterFiles(idComputador):
             
 
 def taskBackup():
-    finished = False
+   
     with conn:
+        
         cur = conn.cursor() #ATIVA O CURSOR DO SQLITE
         cur.execute(queryComputador) #EXECUTA A QUERY PARA LISTAR OS ALIAS DAS MAQUINAS REMOTAS QUE DEVEM EXECUTAR O BACKUP
         comp = cur.fetchall()
+        print comp
         for c in comp: #LISTA DE COMPUTADORES
             lenRowsFiles = counterFiles(c[0])
             queryFolders = "SELECT * FROM copiarpasta "
@@ -344,8 +368,7 @@ def taskBackup():
                 cur.execute("UPDATE computador SET status='Falha no Backup' WHERE id = "+str(c[0]))
                 conn.commit()
                 gravaLog("Verifique se o computador remoto esta desligado ", str(c[0]))
-            finished = True
-        return finished
+           
 
                 
                     

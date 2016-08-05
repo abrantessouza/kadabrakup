@@ -23,7 +23,12 @@
 					<tr>
 						<td>{{r[1]}}</td>
 						<td>{{r[2]}}</td>
-						<td>{{r[3]}}</td>
+						<td>{{r[3]}}
+						%if "%" in str(r[3]):
+								<img src="img/3.gif" width='20' height='20'>						
+						%end
+						</td>
+						
 						<td>
 							%if r[5] == 1:								
 								<input type="checkbox" checked="checked" onclick = "clickSend(this);" value="1" data-id={{r[0]}}>
