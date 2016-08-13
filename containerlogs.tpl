@@ -14,8 +14,8 @@
 				%for r in results:				
 					<tr>
 						<td>{{r[0]}}</td>
-						<td>{{r[1]}}</td>
-						<td>{{r[2]}}</td>
+						<td>{{r[1].decode("cp1252",'replace')}}</td>
+						<td>{{r[2].decode("cp1252",'replace')}}</td>
 						
 				%end	
 				</tbody>

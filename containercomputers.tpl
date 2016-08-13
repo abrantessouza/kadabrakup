@@ -23,7 +23,7 @@
 					<tr>
 						<td>{{r[1]}}</td>
 						<td>{{r[2]}}</td>
-						<td>{{r[3]}}
+						<td>{{r[3].decode("cp1252",'replace')}}
 						%if "%" in str(r[3]):
 								<img src="img/3.gif" width='20' height='20'>						
 						%end
