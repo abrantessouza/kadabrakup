@@ -2,6 +2,7 @@
 #import sqlite3 as sql
 import sys, os, shutil
 from datetime import datetime
+from hurry.filesize import size
 from bottle import route, run, debug, template, static_file, get, request, redirect
 import kadabraKupNetWork
 import threading
@@ -61,6 +62,31 @@ if len(folders) > 0:
 else:
     startBackup = False
 """
+
+def getDirectoryTotalSize(idComputador):
+    queryFolders = "SELECT enderecoPasta FROM copiarpasta WHERE idComputador = %d " % (idComputador)
+    totalSomaFileSize = 0
+    with connt:
+        cur.execute(queryFolders)
+        computerFolders = cur.fetchall()
+        for f in computerFolders:
+            for dirpath, dirnames, filenames in os.walk(f[0]):
+                for f in filenames:
+                    fp = os.path.join(dirpath, f)
+                    totalSomaFileSize += os.path.getsize(fp)
+        return totalSomaFileSize
+        
+
+
+@route('/<filename:re:.*\.css>')
+def stylesheets(filename):
+    return static_file(filename, root='./bootstrap/css')
+
+@route('/img/<filepath:path>')
+def server_static(filepath):
+    return static_file(filepath, root='img/')
+
+
 startBackup = False
 @route('/')
 def index():
@@ -221,18 +247,11 @@ def apagarpasta(idPasta):
         idComputador = d[0]
     cur.execute("DELETE FROM copiarpasta WHERE id="+str(idPasta))
     connt.commit()
+    totalFiles = size(getDirectoryTotalSize(int(idComputador)))
+    updateComputador = "UPDATE computador SET totalSize ='%s' WHERE id = %d" % (totalFiles, int(idComputador))
+    cur.execute(updateComputador)
+    connt.commit()
     redirect('/folders/'+str(idComputador))
-
-
-
-@route('/<filename:re:.*\.css>')
-def stylesheets(filename):
-    return static_file(filename, root='./bootstrap/css')
-
-@route('/img/<filepath:path>')
-def server_static(filepath):
-    return static_file(filepath, root='img/')
-
 
 
 @route('/savefolder', method='POST')
@@ -246,11 +265,16 @@ def savefolder():
     if idPasta == "":
         queryExec = "INSERT INTO copiarpasta (enderecopasta,idComputador) VALUES ('%s',%d)" % (pasta,int(idComputador))           
     else:
-        queryExec = "UPDATE copiarpasta SET enderecopasta = '%s'  WHERE id = %d" % (pasta,int(idPasta))
-    
+        queryExec = "UPDATE copiarpasta SET enderecopasta='%s'  WHERE id=%d" % (pasta,int(idPasta))
+        connt.commit()
+        act = True
     act = cur.execute(queryExec)
-    if act:
-        connt.commit()   
+    connt.commit()    
+    if act:        
+        totalFiles = size(getDirectoryTotalSize(int(idComputador)))
+        updateComputador = "UPDATE computador SET totalSize ='%s' WHERE id = %d" % (totalFiles, int(idComputador))
+        cur.execute(updateComputador)
+        connt.commit()
         redirect("/folders/"+str(idComputador))
    
    

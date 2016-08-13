@@ -30,10 +30,20 @@
 		<div class="form-group">
 			  <label class="col-md-4 control-label" for="savecomputer"></label>
 			  <div class="col-md-4">
-				<button id="savefolder" name="savefolder" class="btn btn-danger">Salvar</button>
+				<button id="savefolder" onclick=loadbar() name="savefolder" class="btn btn-danger">Salvar</button>
 			  </div>
 		</div>
 	</fieldset>
 	</form>
 	</div>
+	<div id="loaderBar"><img src="http://localhost:8180/img/ajax-loader.gif"></div>
 </div>
+
+<script>
+	var loader = document.getElementById('loaderBar');
+	loader.style.visibility  = 'hidden'
+	function loadbar(){
+		loader.style.visibility  = 'visible';
+	}
+</script>
+

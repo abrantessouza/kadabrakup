@@ -19,11 +19,19 @@
 						<td>{{r[1]}}</td>						
 						<td>
 						   <a href = '/editarpasta/{{r[0]}}'><button type="button" class="btn btn-xs btn-warning">Editar</button></a>						   
-						   <a href = '/apagarpasta/{{r[0]}}'<button type="button" class="btn btn-xs btn-warning">Apagar</button></a>
+						   <a href = '/apagarpasta/{{r[0]}}'<button type="button" onclick=loadbar() class="btn btn-xs btn-warning">Apagar</button></a>
 						</td>
 					</tr>
 				%end	
 				</tbody>
 		</table>
+		<div id="loaderBar"><img src="http://localhost:8180/img/ajax-loader.gif"></div>
 	</div>
 </div>
+<script>
+	var loader = document.getElementById('loaderBar');
+	loader.style.visibility  = 'hidden'
+	function loadbar(){
+		loader.style.visibility  = 'visible';
+	}
+</script>

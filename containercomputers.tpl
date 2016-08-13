@@ -13,6 +13,7 @@
 					<tr>
 						<th  style="text-align:center">Computador</th>
 						<th  style="text-align:center">Destino</th>
+						<th  style="text-align:center; width: 20px;">Download</th>
 						<th  style="text-align:center">Status</th>
 						<th  style="text-align:center">Ignorar</th>
 						<th  style="text-align:center">Ações</th>
@@ -23,6 +24,7 @@
 					<tr>
 						<td>{{r[1]}}</td>
 						<td>{{r[2]}}</td>
+						<td>{{r[6]}}</td>
 						<td>{{r[3].decode("cp1252",'replace')}}
 						%if "%" in str(r[3]):
 								<img src="img/3.gif" width='20' height='20'>						
