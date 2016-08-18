@@ -7,7 +7,6 @@ import zipfile, zlib
 import glob
 from datetime import datetime
 import MySQLdb as sql
-import zipstream
 
 queryComputador = "SELECT * FROM computador WHERE heavy = 0 AND ignory = 0 ORDER BY name ASC"
 
@@ -46,16 +45,19 @@ def gravaLog(msg, idComputador): #RECORD LOG IN DATABASE
     dataHoje = datetime.now()
     dateHojeBr = str(dataHoje.day) + "/" + str(dataHoje.month) + "/" + str(dataHoje.year) + "_"+ str(dataHoje.hour) +":"+ str(dataHoje.minute)    
     try:
-        cur.execute("INSERT INTO logs (mensagem, idComputador, data) VALUES ('%s', %d, '%s') " % (str(msg), int(idComputador), dateHojeBr) )
-        conn.commit()
+        with conn:
+            cur.execute("INSERT INTO logs (mensagem, idComputador, data) VALUES ('%s', %d, '%s') " % (str(msg), int(idComputador), dateHojeBr) )
+            conn.commit()
     except Exception as e:
         mensg = "Erro ao gravar o Log "+str(e)
         print mensg
         try:
-            cur.execute("INSERT INTO logs (mensagem, idComputador, data) VALUES ('%s', %d, '%s') " % (str(mensg), int(idComputador), dateHojeBr) )
-            conn.commit()
+            with conn:
+                cur.execute("INSERT INTO logs (mensagem, idComputador, data) VALUES ('%s', %d, '%s') " % (str(mensg), int(idComputador), dateHojeBr) )
+                conn.commit()
         except:
-            conn.commit()
+            with conn:
+                conn.commit()
             pass        
     except:
         print "Erro ao gravar o log"
@@ -97,6 +99,7 @@ def makeZipMove(nameFile, folderDestTemp, folderDest, computadadorNome, idComput
     zipdir(folderDestTemp, zf)
     zf.close()
     shutil.move(nameFile+".zip",folderDest)
+    #updateStatus("Finalizado "+str(dataHoje)+"", idComputador)
     try:
         shutil.rmtree(folderDestTemp)
     except Exception as e:
@@ -107,9 +110,7 @@ def makeZipMove(nameFile, folderDestTemp, folderDest, computadadorNome, idComput
                     os.chmod(os.path.join(path, f),0o777) 
                     os.remove(os.path.join(path, f))
                 except:
-                    pass
-    cur.execute("UPDATE computador SET status='Finalizado com Sucesso "+str(dataHoje.year) + "_" + str(dataHoje.month) + "_" + str(dataHoje.day)+" ' WHERE id='"+str(idComputador)+"'")
-    conn.commit()
+                    pass    
     gravaLog("BACKUP do "+computadadorNome+" FINALIZADO", idComputador)
    
 
@@ -192,7 +193,7 @@ def backupFull(idComputador): #RUN THE FULL BACKUP
             cur.execute("UPDATE computador SET status='Finalizado "+str(dataHoje)+"' WHERE id = "+str(c[0]))
 
 
-def copyIncremental(makeDestiny, fullPathRaw, fullPath, timeStampRemote, timestamp, idComputador): #SIMPLE METHOD OF COPY JUST TO MAKE A CLEAN CODE     
+def copyIncremental(makeDestiny, fullPathRaw, fullPath, idComputador): #SIMPLE METHOD OF COPY JUST TO MAKE A CLEAN CODE     
     makeDestiny, makeDestinyFileName = os.path.split(makeDestiny)    
     if(not(os.path.exists(makeDestiny))):
         try:
@@ -262,6 +263,7 @@ def backupIncremental(idComputador): # RUN THE BACKUP INCREMENTAL
         rowsFiles = cur.fetchall()
         teste = [dict(zip(colunas,rows)) for rows in rowsFiles]
         lista = list()
+        status = "0%"
         for t in teste:                    
             lista.append(t['caminhoArquivo'])
         for path, dirr, files in os.walk(f[2]):
@@ -286,7 +288,7 @@ def backupIncremental(idComputador): # RUN THE BACKUP INCREMENTAL
                              #print caminhoArquivo
                              timeStampRemote = str(int(modification_date(fullPathRaw)))
                              if int(timestamp) < int(timeStampRemote):
-                                 copyIncremental(makeDestiny, fullPathRaw, fullPath, timeStampRemote, timestamp, idComputador)
+                                 copyIncremental(makeDestiny, fullPathRaw, fullPath, idComputador)
                                  with conn:
                                     try:
                                         cur.execute("UPDATE arquivos SET timestamp = '"+str(timeStampRemote)+"' WHERE id ='"+str(id)+"'")
@@ -296,23 +298,27 @@ def backupIncremental(idComputador): # RUN THE BACKUP INCREMENTAL
                                         print str(e)
                                  
                 else:
-                    timestampRemote = copyIncremental(makeDestiny, fullPathRaw, fullPath, timeStampRemote, timestamp, idComputador)                    
                     with conn:
                         try:
+                            timestampRemote = copyIncremental(makeDestiny, fullPathRaw, fullPath, idComputador) 
                             cur.execute("INSERT INTO arquivos (idPasta, caminhoArquivo, timestamp) VALUES ('"+str(f[0])+"', '"+fullPath.replace("\\","\\\\")+"', '"+str(timestampRemote)+"' )" )
                             conn.commit()
+                            #
                         except Exception as e:
                             print "Erro ao inserir"
                             print str(e)
                             
     nameFile =  nomeComputador+"_incremental_"+dateHoje    
     try:
-        makeZipMove(nameFile, folderDestiny, folderDest, nomeComputador, idComputador)
+        updateStatus("Finalizando... "+status, idComputador)
+        makeZipMove(nameFile, folderDestiny, folderDest, nomeComputador, idComputador)        
         with conn:
-            cur.execute("UPDATE computador SET status='Finalizado "+str(dataHoje)+"' WHERE id = "+str(c[0]))
-            conn.commit
+            updateStatus("Finalizado "+str(dataHoje), idComputador)
+            conn.commit()
     except Exception as e:
-        gravaLog("Sem Backup para gravar", c[0])
+        print e
+        gravaLog("Sem Backup para gravar", idComputador)
+        updateStatus("Finalizado, porém sem arquivos para copiar", idComputador)
 
 
 def counterFiles(idComputador):
