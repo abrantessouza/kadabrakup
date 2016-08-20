@@ -7,6 +7,7 @@ Backup Script made in python using web plataform and MySQL as database to store 
   - MySQLdb
   - win32api & win32con
   - Bottle
+  - hurry.filesize
 
 Clone the reposiory, run sql script on dump directory, run on cmd "python web.py" and enjoy it!!!
 
