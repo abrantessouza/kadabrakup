@@ -22,21 +22,24 @@ class TaksBackup(object):
     def __init__(self):
      self.isRunning = True
      self.isRunningFull = True
-     self.idComputador = ""
-     self.day = time.strftime('%d')
+     self.idComputador = ""     
+     self.runningDatetime = datetime.now()
+     self.runningDay = self.runningDatetime.day
+     self.endRun = self.runningDatetime.day
 
-    def runForever(self):
-         while self.isRunning == True:
-             kadabraKupNetWork.taskBackup()
-            
+    def runForever(self):        
+         if self.isRunning == True:             
+             while True:
+                 if self.runningDay == self.endRun:
+                     kadabraKupNetWork.taskBackup() 
+                     self.runningDay += 1                                              
+                 endTime = datetime.now()
+                 self.endRun = endTime.day                 
+                 time.sleep(1)
                     
     def runBackupFull(self):
         if self.isRunningFull == True:
-            kadabraKupNetWork.backupFull(self.idComputador)
-            
-            
-            
-            
+            kadabraKupNetWork.backupFull(self.idComputador) 
     
 
 """
