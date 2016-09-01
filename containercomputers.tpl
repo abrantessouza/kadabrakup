@@ -39,7 +39,7 @@
 							%end
 						</td>
 						<td>
-						 <a href = '/editar/{{r[0]}}'><button type="button" {{runingBackup}} class="btn btn-xs btn-warning">Editar</button></a>
+						 <a href = '/editar/{{r[0]}}'><button type="button" class="btn btn-xs btn-warning">Editar</button></a>
 						 <a href = '/logs/{{r[0]}}'<button type="button" class="btn btn-xs btn-warning">Logs</button></a>
 						 <a href = '/startfullbackup/{{r[0]}}'<button type="button" {{runingBackup}} class="btn btn-xs btn-success">Backup FULL</button></a>
 						 <a href = '/apagar/{{r[0]}}'<button type="button" class="btn btn-xs btn-danger">Apagar</button></a></td>

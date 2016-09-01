@@ -34,8 +34,13 @@ class TaksBackup(object):
                      kadabraKupNetWork.taskBackup() 
                      self.runningDay += 1                                              
                  endTime = datetime.now()
-                 self.endRun = endTime.day                 
-                 time.sleep(1)
+                 self.endRun = endTime.day
+                 if self.endRun >  self.runningDay:
+                     fixdate = datetime.now()
+                     self.runningDay = fixdate.day + 1
+                     self.endRun = fixdate.day                     
+                 print self.endRun, self.runningDay
+                 time.sleep(10)
                     
     def runBackupFull(self):
         if self.isRunningFull == True:
@@ -51,20 +56,6 @@ def server_static(filepath):
 
 l = TaksBackup()
 t = threading.Thread(target = l.runForever)
-"""
-queryFolders = "SELECT * FROM copiarpasta"
-cur.execute(queryFolders)
-folders = cur.fetchall()
-runBackup = True
-if len(folders) > 0:
-    while runBackup:
-        t.start()
-        l.isRunning = True
-        startBackup = True
-        runBackup =  False
-else:
-    startBackup = False
-"""
 
 def getDirectoryTotalSize(idComputador):
     queryFolders = "SELECT enderecoPasta FROM copiarpasta WHERE idComputador = %d " % (idComputador)
