@@ -1,0 +1,21 @@
+% include('default.tpl', title='KadabraKup Network')
+ <div class="container">
+	<div class="starter-template">
+	<legend>Configurações Globais</legend>
+		<form method='POST' action='/saveconfig' class="form-horizontal">
+		%for r in results:
+			<h4>Intervalo em dias para fazer o Backup Diferencial.</h4>
+				<input type='text' value='{{r[2]}}' style='width:100px;' placeholder='Dias' class='form-control input-md' name='inputIncr' >	
+			
+			<h4>Intervalo em dias para fazer o Backup Full.</h4>
+				<input type='text' value='{{r[1]}}' style='width:100px;' placeholder='Dias' class='form-control input-md' name='inputFull' >	
+		%end
+			<div class="form-group">
+			  <label class="col-md-4 control-label" for="savecomputer"></label>
+			  <div class="col-md-6">
+				<button id="saveConfig"  name="saveconfig" class="btn btn-danger">Salvar</button>
+			 </div>
+		</div>
+		</form>
+	</div>
+</div>

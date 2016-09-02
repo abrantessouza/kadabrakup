@@ -37,7 +37,7 @@ body {
             <li><a href="/about">Sobre</a></li>
 			<li><a href="/heavy">Backups Pesados</a></li>
 			<li><a href="/light">Todos os Backups</a></li>
-			
+			<li><a href="/config">Configurações</a></li>			
           </ul>
         </div><!--/.nav-collapse -->
       </div>

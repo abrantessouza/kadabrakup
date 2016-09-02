@@ -1,7 +1,7 @@
 # -*- coding: cp1252 -*-
 #import sqlite3 as sql
 import sys, os, shutil
-from datetime import datetime
+from datetime import datetime, timedelta
 from hurry.filesize import size
 from bottle import route, run, debug, template, static_file, get, request, redirect
 import kadabraKupNetWork
@@ -31,16 +31,17 @@ class TaksBackup(object):
          if self.isRunning == True:             
              while True:
                  if self.runningDay == self.endRun:
-                     kadabraKupNetWork.taskBackup() 
-                     self.runningDay += 1                                              
+                     kadabraKupNetWork.taskBackup()
+                     self.runningDatetime = datetime.now() + timedelta(days=1)
+                     self.runningDay = self.runningDatetime.day                                              
                  endTime = datetime.now()
                  self.endRun = endTime.day
                  if self.endRun >  self.runningDay:
-                     fixdate = datetime.now()
-                     self.runningDay = fixdate.day + 1
-                     self.endRun = fixdate.day                     
+                     fixdate = datetime.now() + timedelta(days=1)
+                     self.runningDay = fixdate.day
+                     self.endRun = fixdate.day - 1                 
                  print self.endRun, self.runningDay
-                 time.sleep(10)
+                 time.sleep(5)
                     
     def runBackupFull(self):
         if self.isRunningFull == True:
@@ -172,9 +173,37 @@ def stop():
 
 @route('/novo')
 def novo():
-    computadores = [('','','','','')]
+    computadores = [('','','','','','','','','')]
     connt.ping(True)
     return template('formcomputer', results = computadores, idCp = "")
+
+@route('/config')
+def config():
+    queryGlobalSettings = "SELECT * FROM globalsettings"
+    with connt:
+        cur.execute(queryGlobalSettings)
+        config = cur.fetchall()
+        if len(config) < 1:
+            config = [('','','')]
+    return template('formconfig', results = config)
+
+@route('/saveconfig', method='POST')
+def saveconfig():
+    connt.ping(True)
+    intervalIncr = request.forms.get("inputIncr")
+    intervalFull = request.forms.get("inputFull")
+    queryGlobalSettings = "SELECT * FROM globalsettings"
+    with connt:
+        cur.execute(queryGlobalSettings)
+        count = cur.fetchall()
+        if len(count) > 0:
+            actGlobalSettings = "UPDATE globalsettings SET interval_full = '%s', interval_incr = '%s'" % (intervalFull, intervalIncr)
+        else:
+            actGlobalSettings = "INSERT INTO globalsettings (interval_full, interval_incr ) VALUES ('%s', '%s')" % (intervalFull, intervalIncr)
+        cur.execute(actGlobalSettings)
+        connt.commit()
+        redirect('/config')
+    
 
 @route('/editar/<idComputador>')
 def editar(idComputador):
@@ -300,9 +329,13 @@ def savecomputer():
    
     destino = request.forms.get('destino')
     destino = destino.replace("\\","\\\\")
+
+    interval_full = request.forms.get("inputFull")
+    interval_incr = request.forms.get("inputIncr")
+    
     msg = ""
-    queryComputadorInsert = "INSERT INTO computador (name, destino,heavy) VALUES ('%s','%s',%d)" % (computador, destino, heavy_check)
-    queryComputadorUpdate = "UPDATE computador SET name = '%s', destino= '%s', heavy = %d WHERE id = %d" % (computador, destino,heavy_check, int(idComputador))   
+    queryComputadorInsert = "INSERT INTO computador (name, destino,heavy, interval_full, interval_incr) VALUES ('%s','%s', %d, %d, %d)" % (computador, destino, heavy_check, int(interval_full), int(interval_incr))
+    queryComputadorUpdate = "UPDATE computador SET name = '%s', destino= '%s', heavy = %d, interval_full=%d, interval_incr=%d   WHERE id = %d" % (computador, destino,heavy_check,  int(interval_full), int(interval_incr), int(idComputador))   
     
     if idComputador == "" or idComputador == 0:
         act = cur.execute(queryComputadorInsert)            

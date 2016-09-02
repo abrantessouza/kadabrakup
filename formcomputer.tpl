@@ -36,8 +36,19 @@
 				%else:
 					<input type="checkbox" name="heavy" value="1"  >
 					<span class="help-block">Marque se o computador remoto possui um grande volume de arquivos</span>  
-				</div>
+				</div>				
 			</div>
+			<label class="col-md-4 control-label" for="destino">Dias p/ o Backup Diferencial</label>  
+				<div class="col-md-6">
+					<input type='text' value='{{r[8]}}' style='width:100px;' placeholder='Dias' class='form-control input-md' name='inputIncr' >
+					<span class="help-block">Intervalo em dias para fazer o Backup Diferencial.</span>  
+				</div>
+			<label class="col-md-4 control-label" for="destino">Dias p/ Backup Full </label>  
+				<div class="col-md-6">
+					<input type='text' value='{{r[7]}}' style='width:100px;' placeholder='Dias' class='form-control input-md' name='inputFull' >
+					<span class="help-block">Intervalo em dias para fazer o Backup Full.</span>  
+				</div>
+			
 		%end
 		<!-- Button -->
 		<div class="form-group">
@@ -50,3 +61,4 @@
 	</form>
 	</div>
 </div>
+

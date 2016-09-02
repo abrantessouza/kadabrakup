@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS `computador` (
   `status` varchar(45) DEFAULT NULL,
   `heavy` tinyint(4) DEFAULT '0',
   `ignory` tinyint(4) DEFAULT '0',
+  `totalSize` varchar(8) NOT NULL,
+  `interval_full` int(11) NOT NULL,
+  `interval_incr` int(11) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
@@ -52,12 +55,35 @@ CREATE TABLE IF NOT EXISTS `copiarpasta` (
 -- Exportação de dados foi desmarcado.
 
 
+-- Copiando estrutura para tabela kadabrakup.globalsettings
+CREATE TABLE IF NOT EXISTS `globalsettings` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `interval_full` int(11) NOT NULL DEFAULT '0',
+  `interval_incr` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- Exportação de dados foi desmarcado.
+
+
 -- Copiando estrutura para tabela kadabrakup.logs
 CREATE TABLE IF NOT EXISTS `logs` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `idComputador` int(11) DEFAULT NULL,
   `mensagem` text,
   `data` varchar(45) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- Exportação de dados foi desmarcado.
+
+
+-- Copiando estrutura para tabela kadabrakup.storeincrimental
+CREATE TABLE IF NOT EXISTS `storeincrimental` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `idComputador` int(11) NOT NULL,
+  `nomeArquivo` text NOT NULL,
+  `dataInsercao` date NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 

@@ -7,6 +7,7 @@ import zipfile, zlib
 import glob
 from datetime import datetime
 import MySQLdb as sql
+import time
 
 queryComputador = "SELECT * FROM computador WHERE heavy = 0 AND ignory = 0 ORDER BY name ASC"
 
@@ -226,8 +227,7 @@ def backupIncremental(idComputador): # RUN THE BACKUP INCREMENTAL
     gravaLog("BACKUP INCREMENTAL do iniciado", idComputador)
     cur = conn.cursor()
     queryComputador = "SELECT * FROM computador"
-    cur.execute("UPDATE computador SET status='Fazendo Backup Incremental' WHERE id = "+str(idComputador))
-    conn.commit()
+    updateStatus("Recolhendo Metadados...", idComputador)
     totalFiles = getTotalFilesSource(idComputador)
     if idComputador:
         queryComputador += " WHERE id = %d" % (int(idComputador))
@@ -312,8 +312,11 @@ def backupIncremental(idComputador): # RUN THE BACKUP INCREMENTAL
     try:
         updateStatus("Finalizando... "+status, idComputador)
         makeZipMove(nameFile, folderDestiny, folderDest, nomeComputador, idComputador)        
-        with conn:
+        with conn:            
             updateStatus("Finalizado "+str(dataHoje), idComputador)
+            nameFile = os.path.join(folderDest, nameFile)
+            queryInsertFileIncr = "INSERT INTO storeincrimental (idComputador, nomeArquivo, dataInsercao) VALUES (%d, '%s.zip', '%s')" % (idComputador, nameFile.replace("\\","\\\\"), time.strftime('%Y-%m-%d'))
+            cur.execute(queryInsertFileIncr)
             conn.commit()
     except Exception as e:
         print e
@@ -338,10 +341,72 @@ def counterFiles(idComputador):
             
             
 
-def taskBackup():
-   
+def backupDiferencial(idComputador, nomeComputador):
+    #PRIMEIRO PEGARÁ OS DADOS DE CONFIGURAÇÕES GLOBAIS E PARCIAIS
+    queryGlobalSettings = "SELECT * FROM globalsettings"
+    queryComputer = "SELECT interval_full, interval_incr FROM computador WHERE id = %d" % (idComputador)
     with conn:
-        
+        cur = conn.cursor()
+        cur.execute(queryComputer)        
+        daysIncr = 0
+        daysIncrComp = 0
+        infoComputador = cur.fetchall()
+        for inf in infoComputador:
+             daysIncrComp = inf[1]             
+        if daysIncrComp == 0:
+            cur.execute(queryGlobalSettings)
+            infoGlobalSetting = cur.fetchall()
+            for inf in infoGlobalSetting:
+                daysIncr = inf[2]
+        else:
+            daysIncr = daysIncrComp
+
+        if daysIncr == 0 and daysIncrComp == 0:
+            daysIncr = 7
+        else:
+            pass        
+          
+    print nomeComputador + str(daysIncr)
+    queryFilesBackupIncr = "SELECT * FROM storeincrimental WHERE idComputador = %d " % (idComputador)
+    #EXECUTA O BACKUP DIFERENCIAL DEPENDENDO DA CONDIÇÃO DO BLOCO ACIMA
+    with conn:
+        cur = conn.cursor()
+        cur.execute(queryFilesBackupIncr)
+        rows = cur.fetchall()
+        folderDest = ""
+        print len(rows)
+        if len(rows) > daysIncr:
+            updateStatus("Executando Backup Diferencial", idComputador)
+            diffTempPath = os.getcwd()
+            diffTempPath = diffTempPath + "\\tempDiff"
+            if os.path.isdir(diffTempPath) == False:
+                os.mkdir(diffTempPath)
+            for r in rows:
+                folderDest = r[2]
+                splitterFolderDest = folderDest.split("\\")
+                del splitterFolderDest[len(splitterFolderDest) - 1]
+                folderDest = "\\".join(splitterFolderDest)
+                try:
+                    with zipfile.ZipFile(r[2],"r") as z:
+                        z.extractall(diffTempPath)
+                except:
+                    pass
+            nameFile = nomeComputador+"_diferencial_"+time.strftime('%Y%m%d_%H%M')
+            zf = zipfile.ZipFile(nameFile+'.zip', mode='w',allowZip64=True)
+            zipdir("tempDiff", zf)
+            zf.close()
+            shutil.move(nameFile+".zip",folderDest)
+            queryDelete = "DELETE FROM storeincrimental WHERE idComputador = %d" %(idComputador)
+            cur.execute(queryDelete)                       
+            try:
+                shutil.rmtree(diffTempPath)
+            except Exception as e:
+                print str(e)
+            
+
+
+def taskBackup():   
+    with conn:        
         cur = conn.cursor() #ATIVA O CURSOR DO SQLITE
         cur.execute(queryComputador) #EXECUTA A QUERY PARA LISTAR OS ALIAS DAS MAQUINAS REMOTAS QUE DEVEM EXECUTAR O BACKUP
         comp = cur.fetchall()
@@ -368,6 +433,7 @@ def taskBackup():
                 if lenRowsFiles == 0:
                     backupFull(c[0])
                 else:
+                    backupDiferencial(c[0], c[1])
                     backupIncremental(c[0])
                 conn.commit()
             else:
